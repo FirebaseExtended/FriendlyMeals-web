@@ -87,7 +87,7 @@ const FilterPanel: React.FC<{
     const [searchParams, setSearchParams] = useSearchParams();
 
     const name = searchParams.get('q') || '';
-    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'saves') || '';
+    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'likes') || '';
     const myRecipes = searchParams.get('myRecipes') === 'on';
     const searchParamsSelectedTags: string[] = searchParams.get('tags')?.split(',').filter(Boolean) || [];
     const searchParamsMinRating = Number(searchParams.get('minRating')) || 0;
@@ -250,11 +250,11 @@ const FilterPanel: React.FC<{
                                     <input
                                         type="radio"
                                         name="sort"
-                                        value="saves"
-                                        defaultChecked={sortBy === 'saves'}
+                                        value="likes"
+                                        defaultChecked={sortBy === 'likes'}
                                         className="accent-primary"
                                     />
-                                    <span className="text-sm">Saves</span>
+                                    <span className="text-sm">Likes</span>
                                 </label>
                             </div>
                         </Field>
@@ -336,7 +336,7 @@ export default function RecipesPage({ loaderData }: Route.loaderData) {
                                 </div>
                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span>•</span>
-                                    <span>{recipe.saves || 0} saves</span>
+                                    <span>{recipe.likes || 0} likes</span>
                                 </div>
                             </div>
                             <ItemDescription>

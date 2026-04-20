@@ -1,5 +1,5 @@
 import { initializeFirestore, addDoc, collection, getDoc, doc, deleteDoc, updateDoc, persistentLocalCache, setDoc, getDocs, query, where, runTransaction, increment } from "firebase/firestore";
-import { execute, field, countAll } from "firebase/firestore/pipelines";
+import { execute, field, countAll, subcollection, average, variable, score, documentMatches } from "firebase/firestore/pipelines";
 import { firebaseApp } from "./firebase";
 
 export interface Review {
@@ -36,7 +36,7 @@ export interface Recipe {
     authorId: string;
     tags: string[];
     averageRating: number;
-    saves: number;
+    likes: number;
     prepTime: string;
     cookTime: string;
     servings: string;
@@ -70,17 +70,32 @@ export async function publishRecipe(userId: string, recipe: Omit<Recipe, "id">):
 }
 
 export async function getRecipe(recipeId: string): Promise<Recipe | null> {
-    const recipeRef = doc(db, `recipes/${recipeId}`);
-    const recipeSnapshot = await getDoc(recipeRef);
+    const pipeline = db.pipeline()
+        .documents([`recipes/${recipeId}`])
+        .define(field("__name__").as("parentRecipeId"))
+        .addFields(
+            subcollection("reviews")
+                .aggregate(average("rating").as("avg"))
+                .toScalarExpression()
+                .as("averageRating"),
+            db.pipeline()
+                .collection("likes")
+                .where(field("recipeId").equal(variable("parentRecipeId")))
+                .aggregate(countAll().as("count"))
+                .toScalarExpression()
+                .as("likes")
+        );
 
-    if (!recipeSnapshot.exists()) {
+    const { results } = await execute(pipeline);
+    const result = results[0];
+
+    if (!result) {
         return null;
     }
 
-    const recipeData = recipeSnapshot.data() as Recipe;
     return {
-        ...recipeData,
-        id: recipeSnapshot.id,
+        ...result.data(),
+        id: result.id,
     } as Recipe;
 }
 
@@ -96,52 +111,24 @@ export async function addReview(recipeId: string, userId: string, rating: number
         rating,
         text: text || ""
     });
-
-    // get the new average of all reviews
-    const pipeline = db.pipeline()
-        .collection(`recipes/${recipeId}/reviews`)
-        .aggregate(field("rating").average().as("averageRating"));
-    const { results } = await execute(pipeline);
-    const data = results[0]?.data();
-
-    let average = data && 'averageRating' in data ? data.averageRating as number : null;
-    if (!average) {
-        // there isn't an average yet, so set it to our new review score
-        average = rating;
-    }
-
-    // set the new average rating
-    await runTransaction(db, async transaction => {
-        const recipeRef = doc(db, `recipes/${recipeId}`);
-        transaction.update(recipeRef, { averageRating: average });
-    });
 }
 
 export async function likeRecipe(userId: string, recipeId: string) {
     const likeId = `${recipeId}_${userId}`;
-    await setDoc(doc(db, "saves", likeId), {
+    await setDoc(doc(db, "likes", likeId), {
         userId,
         recipeId
     });
-
-
-    // increment the total likes on the recipe itself
-    const recipeRef = doc(db, `recipes/${recipeId}`);
-    await updateDoc(recipeRef, { saves: increment(1) });
 }
 
 export async function unlikeRecipe(userId: string, recipeId: string) {
     const likeId = `${recipeId}_${userId}`;
-    await deleteDoc(doc(db, "saves", likeId));
-
-    // decrement the total likes on the recipe itself
-    const recipeRef = doc(db, `recipes/${recipeId}`);
-    await updateDoc(recipeRef, { saves: increment(-1) });
+    await deleteDoc(doc(db, "likes", likeId));
 }
 
 export async function isRecipeLikedByUser(userId: string, recipeId: string): Promise<boolean> {
     const pipeline = db.pipeline()
-        .collection("saves")
+        .collection("likes")
         .where(field("userId").equal(userId))
         .where(field("recipeId").equal(recipeId))
         .limit(1);
@@ -155,17 +142,36 @@ export async function queryRecipes(filters: {
     minRating?: number;
     tags?: string[];
     authorId?: string;
-    savedOnly?: true;
+    likedOnly?: boolean;
     sort?: string;
 }): Promise<Recipe[]> {
     let pipeline = db.pipeline().collection("recipes");
 
-    if (filters.authorId) {
-        pipeline = pipeline.where(field("authorId").equal(filters.authorId));
+    if (filters.searchTerm) {
+        pipeline = pipeline.search({
+            query: documentMatches(filters.searchTerm),
+            addFields: [
+                score().as("searchScore")
+            ]
+        });
     }
 
-    if (filters.searchTerm) {
-        pipeline = pipeline.where(field("title").like(`%${filters.searchTerm}%`));
+    pipeline = pipeline.define(field("__name__").as("parentRecipeId"))
+        .addFields(
+            subcollection("reviews")
+                .aggregate(average("rating").as("avg"))
+                .toScalarExpression()
+                .as("averageRating"),
+            db.pipeline()
+                .collection("likes")
+                .where(field("recipeId").equal(variable("parentRecipeId")))
+                .aggregate(countAll().as("count"))
+                .toScalarExpression()
+                .as("likes")
+        );
+
+    if (filters.authorId) {
+        pipeline = pipeline.where(field("authorId").equal(filters.authorId));
     }
 
     if (filters.minRating && filters.minRating > 0) {
@@ -176,16 +182,24 @@ export async function queryRecipes(filters: {
         pipeline = pipeline.where(field("tags").arrayContainsAny(filters.tags));
     }
 
-    switch (filters.sort) {
-        case 'title':
-            pipeline = pipeline.sort(field('title').ascending());
-            break;
-        case 'rating':
-            pipeline = pipeline.sort(field('averageRating').descending());
-            break;
-        case 'saves':
-            pipeline = pipeline.sort(field('saves').descending());
-            break;
+    if (filters.likedOnly) {
+        pipeline = pipeline.where(field("likes").greaterThan(0));
+    }
+
+    if (filters.sort) {
+        switch (filters.sort) {
+            case 'title':
+                pipeline = pipeline.sort(field('title').ascending());
+                break;
+            case 'rating':
+                pipeline = pipeline.sort(field('averageRating').descending());
+                break;
+            case 'likes':
+                pipeline = pipeline.sort(field('likes').descending());
+                break;
+        }
+    } else if (filters.searchTerm) {
+        pipeline = pipeline.sort(field('searchScore').descending());
     }
 
     const { results } = await execute(pipeline);

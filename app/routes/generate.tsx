@@ -53,7 +53,7 @@ export default function GeneratePage() {
                 ...generatedRecipe,
                 authorId: user.uid,
                 averageRating: 0,
-                saves: 0,
+                likes: 0,
                 tags: generatedRecipe.tags || []
             };
             const savedRecipeId = await publishRecipe(user.uid, recipeToSave);

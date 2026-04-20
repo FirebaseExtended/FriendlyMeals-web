@@ -10,24 +10,24 @@
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
-    "@react-router/node": "7.12.0",
-    "@react-router/serve": "7.12.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-navigation-menu": "^1.2.14",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
+    "@react-router/node": "7.12.0",
+    "@react-router/serve": "7.12.0",
     "@tailwindcss/vite": "^4.1.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "firebase": "^12.5.0-eap-firestore-pipelines.2.e4cdd2e06",
+    "firebase": "^12.12.0",
+    "isbot": "^5",
     "lucide-react": "^0.562.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "react-router": "^7.12.0",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss": "^4.1.18",
-    "isbot": "^5"
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
