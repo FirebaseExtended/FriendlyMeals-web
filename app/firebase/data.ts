@@ -1,4 +1,4 @@
-import { initializeFirestore, addDoc, collection, getDoc, doc, deleteDoc, updateDoc, persistentLocalCache, setDoc, getDocs, query, where, runTransaction, increment } from "firebase/firestore";
+import { initializeFirestore, addDoc, collection, doc, deleteDoc, setDoc } from "firebase/firestore";
 import { execute, field, countAll, subcollection, average, variable, score, documentMatches } from "firebase/firestore/pipelines";
 import { firebaseApp } from "./firebase";
 

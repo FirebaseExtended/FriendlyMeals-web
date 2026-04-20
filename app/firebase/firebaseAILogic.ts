@@ -104,7 +104,7 @@ export async function generateStructuredJsonRecipe(
 async function fileToGenerativePart(file: File) {
   const base64EncodedDataPromise = new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result ? (reader.result as String).split(',')[1] : '');
+    reader.onloadend = () => resolve(reader.result ? (reader.result as string).split(',')[1] : '');
     reader.readAsDataURL(file);
   });
   return {

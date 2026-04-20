@@ -1,4 +1,4 @@
-import type { Route } from "./+types/chat";
+/* eslint-disable react-refresh/only-export-components */
 import React, { useCallback, useMemo, useState } from "react";
 import { ai } from "../firebase/firebase";
 import { getGenerativeModel } from "firebase/ai";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
-export function meta({ }: Route.MetaArgs) {
+export function meta() {
     return [
         { title: "Chat - Friendly Meals" },
         { name: "description", content: "Chat about cooking with AI" },

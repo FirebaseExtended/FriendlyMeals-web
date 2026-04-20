@@ -1,8 +1,8 @@
-import type { Route } from "./+types/home";
+/* eslint-disable react-refresh/only-export-components */
 import { Button } from "@/components/ui/button"
-import { Sparkles, Camera, MessageCircle, BookOpen, Flame, Database } from "lucide-react"
+import { Sparkles, Camera, MessageCircle, BookOpen, Flame } from "lucide-react"
 
-export function meta({ }: Route.MetaArgs) {
+export function meta() {
     return [
         { title: "Friendly Meals - AI-Powered Recipe Generator" },
         { name: "description", content: "Generate recipes with Firebase AI Logic and Firestore Pipelines" },

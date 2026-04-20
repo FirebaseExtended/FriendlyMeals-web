@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { Route } from "./+types/recipe.$recipeId";
 import Recipe from "../components/Recipe";
 import { isRecipeLikedByUser, getRecipe } from "../firebase/data";

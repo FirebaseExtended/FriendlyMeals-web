@@ -1,8 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { Route } from "./+types/recipes";
 import { queryRecipes, getTop5Tags } from "@/firebase/data";
 import { getUser } from "@/firebase/auth";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
     Empty,
     EmptyHeader,
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/item"
 import { Star, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 
-export function meta({ }: Route.MetaArgs) {
+export function meta() {
     return [
         { title: "All Recipes - Friendly Meals" },
         { name: "description", content: "Browse all recipes" },
