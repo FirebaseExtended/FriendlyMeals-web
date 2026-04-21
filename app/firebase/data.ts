@@ -203,6 +203,5 @@ export async function queryRecipes(filters: {
     }
 
     const { results } = await execute(pipeline);
-    console.log(results);
     return results.map(result => ({ ...result.data(), id: result.id }) as Recipe);
 }
