@@ -144,6 +144,7 @@ export async function queryRecipes(filters: {
     authorId?: string;
     likedOnly?: boolean;
     sort?: string;
+    userId?: string;
 }): Promise<Recipe[]> {
     let pipeline = db.pipeline().collection("recipes");
 
@@ -182,8 +183,17 @@ export async function queryRecipes(filters: {
         pipeline = pipeline.where(field("tags").arrayContainsAny(filters.tags));
     }
 
-    if (filters.likedOnly) {
-        pipeline = pipeline.where(field("likes").greaterThan(0));
+    if (filters.likedOnly && filters.userId) {
+        pipeline = pipeline.addFields(
+            db.pipeline()
+                .collection("likes")
+                .where(field("userId").equal(filters.userId))
+                .where(field("recipeId").equal(variable("parentRecipeId")))
+                .limit(1)
+                .select("userId")
+                .toScalarExpression()
+                .as("isLikedByMe")
+        ).where(field("isLikedByMe").equal(null).not());
     }
 
     if (filters.sort) {

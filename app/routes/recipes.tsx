@@ -45,7 +45,8 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
         tags: url.searchParams.get('tags') ? url.searchParams.get('tags')!.split(',') : undefined,
         authorId: url.searchParams.get('myRecipes') === 'on' ? user.uid : undefined,
         likedOnly: url.searchParams.get('likedOnly') === 'on',
-        sort: url.searchParams.get('sort') || undefined
+        sort: url.searchParams.get('sort') || undefined,
+        userId: user.uid
     };
 
     const [recipes, topTags] = await Promise.all([
@@ -91,6 +92,7 @@ const FilterPanel: React.FC<{
     const name = searchParams.get('q') || '';
     const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'likes') || '';
     const myRecipes = searchParams.get('myRecipes') === 'on';
+    const likedOnly = searchParams.get('likedOnly') === 'on';
     const searchParamsSelectedTags: string[] = searchParams.get('tags')?.split(',').filter(Boolean) || [];
     const searchParamsMinRating = Number(searchParams.get('minRating')) || 0;
 
@@ -176,6 +178,18 @@ const FilterPanel: React.FC<{
                                     className="w-4 h-4 accent-primary rounded border-gray-300"
                                 />
                                 <span className="font-medium">Show only my recipes</span>
+                            </label>
+                        </Field>
+
+                        <Field>
+                            <label className="flex items-center gap-2 cursor-pointer p-1">
+                                <input
+                                    type="checkbox"
+                                    name='likedOnly'
+                                    defaultChecked={likedOnly}
+                                    className="w-4 h-4 accent-primary rounded border-gray-300"
+                                />
+                                <span className="font-medium">Show only my liked recipes</span>
                             </label>
                         </Field>
 
