@@ -19,6 +19,7 @@ import { Link, useSearchParams, useNavigate, Form } from "react-router";
 import type { Recipe } from "../firebase/data";
 import {
     Item,
+    ItemMedia,
     ItemContent,
     ItemDescription,
     ItemGroup,
@@ -321,6 +322,15 @@ export default function RecipesPage({ loaderData }: Route.loaderData) {
             <ItemGroup className='gap-4'>
                 {recipes.map((recipe: Recipe) => (
                     <Item key={recipe.id} variant="outline">
+                        {recipe.imageUri && (
+                            <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
+                                <img
+                                    src={recipe.imageUri}
+                                    alt={recipe.title}
+                                    className="max-h-20 max-w-20 object-contain"
+                                />
+                            </ItemMedia>
+                        )}
                         <ItemContent>
                             <ItemTitle>{recipe.title}</ItemTitle>
                             <div className="flex items-center gap-2 mb-2">

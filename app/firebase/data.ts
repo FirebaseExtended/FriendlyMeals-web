@@ -1,5 +1,5 @@
 import { initializeFirestore, addDoc, collection, doc, deleteDoc, setDoc } from "firebase/firestore";
-import { execute, field, countAll, subcollection, average, variable, score, documentMatches } from "firebase/firestore/pipelines";
+import { execute, field, countAll, subcollection, average, variable, score, documentMatches, documentId } from "firebase/firestore/pipelines";
 import { firebaseApp } from "./firebase";
 
 export interface Review {
@@ -72,7 +72,7 @@ export async function publishRecipe(userId: string, recipe: Omit<Recipe, "id">):
 export async function getRecipe(recipeId: string): Promise<Recipe | null> {
     const pipeline = db.pipeline()
         .documents([`recipes/${recipeId}`])
-        .define(field("__name__").as("parentRecipeId"))
+        .define(documentId(field("__name__")).as("parentRecipeId"))
         .addFields(
             subcollection("reviews")
                 .aggregate(average("rating").as("avg"))
@@ -156,7 +156,7 @@ export async function queryRecipes(filters: {
         });
     }
 
-    pipeline = pipeline.define(field("__name__").as("parentRecipeId"))
+    pipeline = pipeline.define(documentId(field("__name__")).as("parentRecipeId"))
         .addFields(
             subcollection("reviews")
                 .aggregate(average("rating").as("avg"))
@@ -203,5 +203,6 @@ export async function queryRecipes(filters: {
     }
 
     const { results } = await execute(pipeline);
+    console.log(results);
     return results.map(result => ({ ...result.data(), id: result.id }) as Recipe);
 }
