@@ -74,11 +74,11 @@ export async function generateStructuredJsonRecipe(
     properties: {
       title: Schema.string(),
       ingredients: Schema.array({ items: Schema.string() }),
-      instructions: Schema.string({ description: 'markdown-formatted recipe instructions.' }),
+      instructions: Schema.string({ description: 'Markdown-formatted recipe instructions. Avoid escaping whitespace characters.' }),
       tags: Schema.array({ items: Schema.string() }),
-      prepTime: Schema.number(),
-      cookTime: Schema.number(),
-      servings: Schema.number(),
+      prepTime: Schema.string(),
+      cookTime: Schema.string(),
+      servings: Schema.string(),
     },
   });
 
