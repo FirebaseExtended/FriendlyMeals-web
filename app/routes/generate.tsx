@@ -1,4 +1,4 @@
-import type { Route } from "./+types/generate";
+/* eslint-disable react-refresh/only-export-components */
 
 import { useState } from "react";
 import { IngredientInput } from "@/components/IngredientInput";
@@ -11,7 +11,7 @@ import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { getUser } from "@/firebase/auth";
 import { useNavigate } from "react-router";
 
-export function meta({ }: Route.MetaArgs) {
+export function meta() {
     return [
         { title: "Generate Recipe - Friendly Meals" },
         { name: "description", content: "Generate a new recipe with AI" },
@@ -53,7 +53,7 @@ export default function GeneratePage() {
                 ...generatedRecipe,
                 authorId: user.uid,
                 averageRating: 0,
-                saves: 0,
+                likes: 0,
                 tags: generatedRecipe.tags || []
             };
             const savedRecipeId = await publishRecipe(user.uid, recipeToSave);

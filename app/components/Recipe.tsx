@@ -13,7 +13,7 @@ import type { Recipe } from "../firebase/data";
 import { deleteRecipe, addReview, likeRecipe, unlikeRecipe } from "../firebase/data";
 import { getUser } from "../firebase/auth";
 
-const InfoBox = ({ icon: Icon, label, value }: { icon: any, label: string, value: string | number }) => (
+const InfoBox = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
     <div className="flex flex-col items-center justify-center p-3 py-4 bg-muted/40 rounded-2xl gap-2 flex-1 min-w-[30%]">
         <div className="p-2 bg-background rounded-full shadow-sm text-emerald-600">
             <Icon className="w-5 h-5" />

@@ -1,8 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { Route } from "./+types/recipes";
 import { queryRecipes, getTop5Tags } from "@/firebase/data";
 import { getUser } from "@/firebase/auth";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
     Empty,
     EmptyHeader,
@@ -18,6 +19,7 @@ import { Link, useSearchParams, useNavigate, Form } from "react-router";
 import type { Recipe } from "../firebase/data";
 import {
     Item,
+    ItemMedia,
     ItemContent,
     ItemDescription,
     ItemGroup,
@@ -26,7 +28,7 @@ import {
 } from "@/components/ui/item"
 import { Star, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 
-export function meta({ }: Route.MetaArgs) {
+export function meta() {
     return [
         { title: "All Recipes - Friendly Meals" },
         { name: "description", content: "Browse all recipes" },
@@ -43,7 +45,8 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
         tags: url.searchParams.get('tags') ? url.searchParams.get('tags')!.split(',') : undefined,
         authorId: url.searchParams.get('myRecipes') === 'on' ? user.uid : undefined,
         likedOnly: url.searchParams.get('likedOnly') === 'on',
-        sort: url.searchParams.get('sort') || undefined
+        sort: url.searchParams.get('sort') || undefined,
+        userId: user.uid
     };
 
     const [recipes, topTags] = await Promise.all([
@@ -87,8 +90,9 @@ const FilterPanel: React.FC<{
     const [searchParams, setSearchParams] = useSearchParams();
 
     const name = searchParams.get('q') || '';
-    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'saves') || '';
+    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'likes' | 'none') || '';
     const myRecipes = searchParams.get('myRecipes') === 'on';
+    const likedOnly = searchParams.get('likedOnly') === 'on';
     const searchParamsSelectedTags: string[] = searchParams.get('tags')?.split(',').filter(Boolean) || [];
     const searchParamsMinRating = Number(searchParams.get('minRating')) || 0;
 
@@ -177,6 +181,18 @@ const FilterPanel: React.FC<{
                             </label>
                         </Field>
 
+                        <Field>
+                            <label className="flex items-center gap-2 cursor-pointer p-1">
+                                <input
+                                    type="checkbox"
+                                    name='likedOnly'
+                                    defaultChecked={likedOnly}
+                                    className="w-4 h-4 accent-primary rounded border-gray-300"
+                                />
+                                <span className="font-medium">Show only my liked recipes</span>
+                            </label>
+                        </Field>
+
                         {/* Rating */}
                         <Field>
                             <FieldLabel>Minimum Rating</FieldLabel>
@@ -225,7 +241,17 @@ const FilterPanel: React.FC<{
                         {/* Sort By */}
                         <Field>
                             <FieldLabel>Sort By</FieldLabel>
-                            <div className="flex gap-4">
+                            <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="sort"
+                                        value="none"
+                                        defaultChecked={!sortBy || sortBy === 'none'}
+                                        className="accent-primary"
+                                    />
+                                    <span className="text-sm">No sort</span>
+                                </label>
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input
                                         type="radio"
@@ -250,11 +276,11 @@ const FilterPanel: React.FC<{
                                     <input
                                         type="radio"
                                         name="sort"
-                                        value="saves"
-                                        defaultChecked={sortBy === 'saves'}
+                                        value="likes"
+                                        defaultChecked={sortBy === 'likes'}
                                         className="accent-primary"
                                     />
-                                    <span className="text-sm">Saves</span>
+                                    <span className="text-sm">Likes</span>
                                 </label>
                             </div>
                         </Field>
@@ -320,6 +346,15 @@ export default function RecipesPage({ loaderData }: Route.loaderData) {
             <ItemGroup className='gap-4'>
                 {recipes.map((recipe: Recipe) => (
                     <Item key={recipe.id} variant="outline">
+                        {recipe.imageUri && (
+                            <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
+                                <img
+                                    src={recipe.imageUri}
+                                    alt={recipe.title}
+                                    className="max-h-20 max-w-20 object-contain"
+                                />
+                            </ItemMedia>
+                        )}
                         <ItemContent>
                             <ItemTitle>{recipe.title}</ItemTitle>
                             <div className="flex items-center gap-2 mb-2">
@@ -336,7 +371,7 @@ export default function RecipesPage({ loaderData }: Route.loaderData) {
                                 </div>
                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span>•</span>
-                                    <span>{recipe.saves || 0} saves</span>
+                                    <span>{recipe.likes || 0} likes</span>
                                 </div>
                             </div>
                             <ItemDescription>

@@ -74,11 +74,11 @@ export async function generateStructuredJsonRecipe(
     properties: {
       title: Schema.string(),
       ingredients: Schema.array({ items: Schema.string() }),
-      instructions: Schema.string({ description: 'markdown-formatted recipe instructions.' }),
+      instructions: Schema.string({ description: 'Markdown-formatted recipe instructions. Avoid escaping whitespace characters.' }),
       tags: Schema.array({ items: Schema.string() }),
-      prepTime: Schema.number(),
-      cookTime: Schema.number(),
-      servings: Schema.number(),
+      prepTime: Schema.string(),
+      cookTime: Schema.string(),
+      servings: Schema.string(),
     },
   });
 
@@ -104,7 +104,7 @@ export async function generateStructuredJsonRecipe(
 async function fileToGenerativePart(file: File) {
   const base64EncodedDataPromise = new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result ? (reader.result as String).split(',')[1] : '');
+    reader.onloadend = () => resolve(reader.result ? (reader.result as string).split(',')[1] : '');
     reader.readAsDataURL(file);
   });
   return {
