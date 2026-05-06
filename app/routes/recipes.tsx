@@ -90,7 +90,7 @@ const FilterPanel: React.FC<{
     const [searchParams, setSearchParams] = useSearchParams();
 
     const name = searchParams.get('q') || '';
-    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'likes' | 'default') || '';
+    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'likes' | 'none') || '';
     const myRecipes = searchParams.get('myRecipes') === 'on';
     const likedOnly = searchParams.get('likedOnly') === 'on';
     const searchParamsSelectedTags: string[] = searchParams.get('tags')?.split(',').filter(Boolean) || [];
@@ -246,11 +246,11 @@ const FilterPanel: React.FC<{
                                     <input
                                         type="radio"
                                         name="sort"
-                                        value="default"
-                                        defaultChecked={!sortBy || sortBy === 'default'}
+                                        value="none"
+                                        defaultChecked={!sortBy || sortBy === 'none'}
                                         className="accent-primary"
                                     />
-                                    <span className="text-sm">Default</span>
+                                    <span className="text-sm">No sort</span>
                                 </label>
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input
