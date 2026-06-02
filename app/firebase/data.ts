@@ -47,56 +47,18 @@ export const db = initializeFirestore(firebaseApp, {}, 'default');
 
 // Get top 5 most popular tags across all recipes
 export async function getTop5Tags(): Promise<string[]> {
-    const pipeline = db.pipeline()
-        .collection("recipes")
-        .unnest(field("tags").as("tagName"))
-        .aggregate({
-            accumulators: [countAll().as("tagCount")],
-            groups: ["tagName"]
-        })
-        .sort(field("tagCount").descending())
-        .limit(5);
-
-    const { results } = await execute(pipeline);
-    return results.map(result => result.data().tagName as string);
+    // TODO: Implement suggest tags pipeline query
+    return [];
 }
 
 export async function publishRecipe(userId: string, recipe: Omit<Recipe, "id">): Promise<string> {
-    const recipeRef = await addDoc(collection(db, "recipes"), {
-        ...recipe,
-        authorId: userId
-    });
-    return recipeRef.id;
+    // TODO: Implement writing data to Firestore
+    return "";
 }
 
 export async function getRecipe(recipeId: string): Promise<Recipe | null> {
-    const pipeline = db.pipeline()
-        .documents([`recipes/${recipeId}`])
-        .define(documentId(field("__name__")).as("parentRecipeId"))
-        .addFields(
-            subcollection("reviews")
-                .aggregate(average("rating").as("avg"))
-                .toScalarExpression()
-                .as("averageRating"),
-            db.pipeline()
-                .collection("likes")
-                .where(field("recipeId").equal(variable("parentRecipeId")))
-                .aggregate(countAll().as("count"))
-                .toScalarExpression()
-                .as("likes")
-        );
-
-    const { results } = await execute(pipeline);
-    const result = results[0];
-
-    if (!result) {
-        return null;
-    }
-
-    return {
-        ...result.data(),
-        id: result.id,
-    } as Recipe;
+    // TODO: Implement reading a single recipe with dynamic rating and likes aggregation
+    return null;
 }
 
 export async function deleteRecipe(recipeId: string) {
@@ -148,69 +110,7 @@ export async function queryRecipes(filters: {
 }): Promise<Recipe[]> {
     let pipeline = db.pipeline().collection("recipes");
 
-    if (filters.searchTerm) {
-        pipeline = pipeline.search({
-            query: documentMatches(filters.searchTerm),
-            addFields: [
-                score().as("searchScore")
-            ]
-        });
-    }
-
-    pipeline = pipeline.define(documentId(field("__name__")).as("parentRecipeId"))
-        .addFields(
-            subcollection("reviews")
-                .aggregate(average("rating").as("avg"))
-                .toScalarExpression()
-                .as("averageRating"),
-            db.pipeline()
-                .collection("likes")
-                .where(field("recipeId").equal(variable("parentRecipeId")))
-                .aggregate(countAll().as("count"))
-                .toScalarExpression()
-                .as("likes")
-        );
-
-    if (filters.authorId) {
-        pipeline = pipeline.where(field("authorId").equal(filters.authorId));
-    }
-
-    if (filters.minRating && filters.minRating > 0) {
-        pipeline = pipeline.where(field("averageRating").greaterThanOrEqual(filters.minRating));
-    }
-
-    if (filters.tags && filters.tags.length > 0) {
-        pipeline = pipeline.where(field("tags").arrayContainsAny(filters.tags));
-    }
-
-    if (filters.likedOnly && filters.userId) {
-        pipeline = pipeline.addFields(
-            db.pipeline()
-                .collection("likes")
-                .where(field("userId").equal(filters.userId))
-                .where(field("recipeId").equal(variable("parentRecipeId")))
-                .limit(1)
-                .select("userId")
-                .toScalarExpression()
-                .as("isLikedByMe")
-        ).where(field("isLikedByMe").equal(null).not());
-    }
-
-    if (filters.sort) {
-        switch (filters.sort) {
-            case 'title':
-                pipeline = pipeline.sort(field('title').ascending());
-                break;
-            case 'rating':
-                pipeline = pipeline.sort(field('averageRating').descending());
-                break;
-            case 'likes':
-                pipeline = pipeline.sort(field('likes').descending());
-                break;
-        }
-    } else if (filters.searchTerm) {
-        pipeline = pipeline.sort(field('searchScore').descending());
-    }
+    // TODO: Implement this function in the next codelab steps.
 
     const { results } = await execute(pipeline);
     return results.map(result => ({ ...result.data(), id: result.id }) as Recipe);
