@@ -11,7 +11,7 @@ export async function generateTextRecipe(
   cuisineType: string
 ): Promise<string> {
   // Create a `GenerativeModel` instance with the desired model.
-  const model = getGenerativeModel(ai, { model: "gemini-2.5-flash" });
+  const model = getGenerativeModel(ai, { model: "gemini-3.7-flash" });
 
   // Create the prompt sent to the LLM from a template.
   const prompt = `Using the following list of ingredients, create a recipe in the ${cuisineType} cuisine: ${ingredients}`;
@@ -24,7 +24,7 @@ export async function generateTextRecipe(
 // Generates a header image for the recipe and saves it to Firebase Storage
 export async function generateRecipeImage(title: string): Promise<string> {
   const model = getGenerativeModel(ai, {
-    model: "gemini-2.5-flash-image",
+    model: "gemini-3.1-flash-image",
     generationConfig: {
       responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE],
     },
@@ -84,7 +84,7 @@ export async function generateStructuredJsonRecipe(
 
   // Create a `GenerativeModel` instance with a model configured to use your schema
   const model = getGenerativeModel(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.7-flash",
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: recipeSchema,
@@ -130,7 +130,7 @@ export async function generateRecipeFromImage(
   });
 
   const model = getGenerativeModel(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.7-flash",
     // Use the schema for image generation too
     generationConfig: {
       responseMimeType: "application/json",
