@@ -10,7 +10,7 @@ export const firebaseApp = initializeApp(firebaseConfig);
 // See http://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider
 // for instructions for generating reCAPTCHA key.
 initializeAppCheck(firebaseApp, {
-  provider: new ReCaptchaEnterpriseProvider('RECAPTHCA_KEY'), 
+  provider: new ReCaptchaEnterpriseProvider('RECAPTCHA_KEY'), 
   isTokenAutoRefreshEnabled: true
 });
 
