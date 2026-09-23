@@ -24,7 +24,7 @@ export default function ChatPage() {
     const chat = useMemo(() => {
         // Create a `GenerativeModel` instance with the desired model.
         const model = getGenerativeModel(ai, {
-            model: "gemini-2.5-flash",
+            model: "gemini-3.8-flash",
             generationConfig: { maxOutputTokens: 1000 },
             systemInstruction:
                 "You're a recipe recommendation chat bot. Keep responses brief, since they need to fit in a chat window.",
