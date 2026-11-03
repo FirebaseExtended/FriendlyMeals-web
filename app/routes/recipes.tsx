@@ -302,7 +302,7 @@ const FilterPanel: React.FC<{
 };
 
 
-export default function RecipesPage({ loaderData }: Route.loaderData) {
+export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     const { recipes, topTags } = loaderData;
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();

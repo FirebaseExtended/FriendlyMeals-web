@@ -25,6 +25,10 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     /* Shadcn */
+    "rootDirs": [
+      ".",
+      "./.react-router/types"
+    ],
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -33,6 +37,7 @@
     }
   },
   "include": [
-    "app"
+    "app",
+    ".react-router/types/**/*"
   ]
 }

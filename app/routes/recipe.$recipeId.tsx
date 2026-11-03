@@ -1,11 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
+import { data } from "react-router";
 import type { Route } from "./+types/recipe.$recipeId";
 import Recipe from "../components/Recipe";
 import { isRecipeLikedByUser, getRecipe } from "../firebase/data";
 import { getUser } from "../firebase/auth";
 
-export function meta({ data }: Route.MetaArgs) {
-    const title = data?.title || "Recipe";
+export function meta({ loaderData }: Route.MetaArgs) {
+    const title = loaderData?.recipe?.title || "Recipe";
     return [
         { title: `${title} - Friendly Meals` },
         { name: "description", content: `View recipe: ${title}` },
@@ -18,6 +19,9 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
     }
     const user = await getUser(); // ensure auth
     const recipe = await getRecipe(params.recipeId);
+    if (!recipe) {
+        throw data("Recipe not found", { status: 404 });
+    }
     const isLiked = await isRecipeLikedByUser(user.uid, params.recipeId);
     return { recipe, isLiked };
 }
