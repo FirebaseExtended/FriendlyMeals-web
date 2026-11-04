@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, type FC } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ interface IngredientInputProps {
   isLoading: boolean | string;
 }
 
-export const IngredientInput: React.FC<IngredientInputProps> = ({ handleSubmit, isLoading }) => {
+export const IngredientInput: FC<IngredientInputProps> = ({ handleSubmit, isLoading }) => {
   const [ingredients, setIngredients] = useState("");
   const [cuisineType, setCuisineType] = useState("");
 

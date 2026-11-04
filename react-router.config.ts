@@ -1,6 +1,6 @@
 import type { Config } from "@react-router/dev/config";
 
 export default {
-    // SPA mode - no server-side rendering
-    ssr: false,
+    // Enable SSR for public recipe pages and Markdown resource routes
+    ssr: true,
 } satisfies Config;

@@ -1,391 +1,442 @@
-/* eslint-disable react-refresh/only-export-components */
-import type { Route } from "./+types/recipes";
-import { queryRecipes, getTop5Tags } from "@/firebase/data";
-import { getUser } from "@/firebase/auth";
-
-import React, { useState, useRef } from "react";
+import { useRef, useState, type FC } from "react";
 import {
-    Empty,
-    EmptyHeader,
-    EmptyTitle,
-    EmptyDescription,
-    EmptyContent,
-    EmptyMedia
+  data,
+  Form,
+  href,
+  Link,
+  useNavigation,
+  useSearchParams,
+} from "react-router";
+import { BookOpen, ChevronDown, ChevronUp, Search, Star, X } from "lucide-react";
+import type { Route } from "./+types/recipes";
+import {
+  getTop5Tags,
+  queryRecipes,
+  type Recipe,
+  type RecipeFilters,
+} from "@/firebase/data";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
-import { Link, useSearchParams, useNavigate, Form } from "react-router";
-import type { Recipe } from "../firebase/data";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-    Item,
-    ItemMedia,
-    ItemContent,
-    ItemDescription,
-    ItemGroup,
-    ItemActions,
-    ItemTitle,
-} from "@/components/ui/item"
-import { Star, ChevronDown, ChevronUp, Search, X } from "lucide-react";
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
+
+const PUBLIC_RECIPES_CACHE_CONTROL =
+  "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
+
+export function headers({ loaderHeaders, errorHeaders }: Route.HeadersArgs) {
+  if (errorHeaders) {
+    return {};
+  }
+  const cacheControl = loaderHeaders.get("Cache-Control");
+  return cacheControl ? { "Cache-Control": cacheControl } : {};
+}
 
 export function meta() {
-    return [
-        { title: "All Recipes - Friendly Meals" },
-        { name: "description", content: "Browse all recipes" },
-    ];
+  return [
+    { title: "All Recipes - Friendly Meals" },
+    { name: "description", content: "Browse community recipes" },
+  ];
 }
 
+function isSafeImageUrl(url: string | undefined): url is string {
+  return Boolean(
+    url && (url.startsWith("https://") || url.startsWith("http://"))
+  );
+}
+
+function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
+  const url = new URL(requestUrl);
+  const rawMinRating = Number(url.searchParams.get("minRating"));
+  const rawTags = url.searchParams.get("tags");
+  const rawSort = url.searchParams.get("sort");
+
+  return {
+    searchTerm: url.searchParams.get("q")?.trim() || undefined,
+    minRating:
+      !Number.isNaN(rawMinRating) && rawMinRating > 0
+        ? rawMinRating
+        : undefined,
+    tags: rawTags ? rawTags.split(",").filter(Boolean) : undefined,
+    sort: rawSort && rawSort !== "none" ? rawSort : undefined,
+  };
+}
+
+async function loadRecipesCatalog(request: Request) {
+  const filters = parseFiltersFromUrl(request.url);
+  const [recipes, topTags] = await Promise.all([
+    queryRecipes(filters),
+    getTop5Tags(),
+  ]);
+  return { recipes, topTags };
+}
+
+// Initial HTML request renders on Cloud Run so search engines and agents get full HTML
+export async function loader({ request }: Route.LoaderArgs) {
+  const payload = await loadRecipesCatalog(request);
+  return data(payload, {
+    headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
+  });
+}
+
+// Subsequent navigations and filter submissions run directly in the browser against Firestore
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-    const user = await getUser();
-    const url = new URL(request.url);
-
-    const filters = {
-        searchTerm: url.searchParams.get('q') || undefined,
-        minRating: url.searchParams.get('minRating') ? Number(url.searchParams.get('minRating')) : undefined,
-        tags: url.searchParams.get('tags') ? url.searchParams.get('tags')!.split(',') : undefined,
-        authorId: url.searchParams.get('myRecipes') === 'on' ? user.uid : undefined,
-        likedOnly: url.searchParams.get('likedOnly') === 'on',
-        sort: url.searchParams.get('sort') || undefined,
-        userId: user.uid
-    };
-
-    const [recipes, topTags] = await Promise.all([
-        queryRecipes(filters),
-        getTop5Tags()
-    ]);
-
-    return { recipes, topTags };
+  return loadRecipesCatalog(request);
 }
 
-const ZeroState: React.FC = () => {
-    return (
-        <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
-            <Empty>
-                <EmptyMedia variant="icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
-                </EmptyMedia>
-                <EmptyHeader>
-                    <EmptyTitle>No recipes yet</EmptyTitle>
-                    <EmptyDescription>
-                        Generate recipes to start building your collection.
-                    </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                    <Button asChild>
-                        <a href="/generate">Generate Recipe</a>
-                    </Button>
-                </EmptyContent>
-            </Empty>
-        </div>
-    );
-}
-
-const FilterPanel: React.FC<{
-    isOpen: boolean;
-    onToggle: () => void;
-    availableTags: string[];
-}> = ({ isOpen, onToggle, availableTags }) => {
-    const formRef = useRef(null);
-
-    const [searchParams, setSearchParams] = useSearchParams();
-
-    const name = searchParams.get('q') || '';
-    const sortBy = (searchParams.get('sort') as 'rating' | 'title' | 'likes' | 'none') || '';
-    const myRecipes = searchParams.get('myRecipes') === 'on';
-    const likedOnly = searchParams.get('likedOnly') === 'on';
-    const searchParamsSelectedTags: string[] = searchParams.get('tags')?.split(',').filter(Boolean) || [];
-    const searchParamsMinRating = Number(searchParams.get('minRating')) || 0;
-
-    const [minRating, setMinRating] = useState(searchParamsMinRating);
-    const [selectedTags, setSelectedTags] = useState<string[]>(searchParamsSelectedTags);
-
-    const handleTagToggle = (tag: string) => {
-        setSelectedTags(prev =>
-            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-        );
-    };
-
-    const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
-        e.preventDefault();
-        const newSearchParams = new URLSearchParams();
-
-        // copy form state to search params
-        const formData = new FormData(e.target as HTMLFormElement);
-        for (const [key, value] of formData.entries()) {
-            if (value) {
-                newSearchParams.set(key, value as string);
-            }
-        }
-
-        // handle interactive components that manage their values through state
-        if (selectedTags.length > 0) newSearchParams.set('tags', selectedTags.join(','));
-        if (minRating > 0) newSearchParams.set('minRating', String(minRating));
-
-        // trigger a new read
-        setSearchParams(newSearchParams);
-    };
-
-    const handleReset = () => {
-        // clear components on the page
-        if (formRef.current) {
-            (formRef.current as HTMLFormElement).reset();
-        }
-        setMinRating(0);
-        setSelectedTags([]);
-
-        // trigger a new read
-        setSearchParams(new URLSearchParams());
-    };
-
-    const hasFilters = Array.from(searchParams.keys()).length > 0;
-
-    return (
-        <div className="bg-card border rounded-xl mb-6 overflow-hidden">
-            <button
-                onClick={onToggle}
-                className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-            >
-                <div className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium">Filter Recipes</span>
-                    {hasFilters && (
-                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                            Active
-                        </span>
-                    )}
-                </div>
-                {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            {isOpen && (
-                <Form onSubmit={handleSubmit} className="p-4 border-t" ref={formRef}>
-                    <FieldGroup>
-                        <Field>
-                            <FieldLabel>Recipe Name</FieldLabel>
-                            <Input
-                                placeholder="e.g. Pasta, Salad..."
-                                defaultValue={name}
-                                name='q'
-                            />
-                        </Field>
-
-                        <Field>
-                            <label className="flex items-center gap-2 cursor-pointer p-1">
-                                <input
-                                    type="checkbox"
-                                    name='myRecipes'
-                                    defaultChecked={myRecipes}
-                                    className="w-4 h-4 accent-primary rounded border-gray-300"
-                                />
-                                <span className="font-medium">Show only my recipes</span>
-                            </label>
-                        </Field>
-
-                        <Field>
-                            <label className="flex items-center gap-2 cursor-pointer p-1">
-                                <input
-                                    type="checkbox"
-                                    name='likedOnly'
-                                    defaultChecked={likedOnly}
-                                    className="w-4 h-4 accent-primary rounded border-gray-300"
-                                />
-                                <span className="font-medium">Show only my liked recipes</span>
-                            </label>
-                        </Field>
-
-                        {/* Rating */}
-                        <Field>
-                            <FieldLabel>Minimum Rating</FieldLabel>
-                            <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                        key={star}
-                                        className={`w-7 h-7 cursor-pointer transition-all ${star <= minRating
-                                            ? "fill-amber-400 text-amber-400"
-                                            : "text-muted-foreground/30 hover:text-amber-400"
-                                            }`}
-                                        onClick={() => setMinRating(star === minRating ? 0 : star)}
-                                    />
-                                ))}
-                                {minRating > 0 && (
-                                    <button
-                                        onClick={() => setMinRating(0)}
-                                        className="ml-2 text-xs text-muted-foreground hover:text-foreground"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </Field>
-
-                        {/* Tags */}
-                        <Field>
-                            <FieldLabel>Tags</FieldLabel>
-                            <div className="flex flex-wrap gap-2">
-                                {availableTags.map((tag) => (
-                                    <button
-                                        key={tag}
-                                        type="button"
-                                        onClick={() => handleTagToggle(tag)}
-                                        className={`px-3 py-1.5 text-sm rounded-full border transition-all ${selectedTags.includes(tag)
-                                            ? "bg-primary text-primary-foreground border-primary"
-                                            : "bg-background border-border hover:border-primary/50"
-                                            }`}
-                                    >
-                                        {tag}
-                                    </button>
-                                ))}
-                            </div>
-                        </Field>
-
-                        {/* Sort By */}
-                        <Field>
-                            <FieldLabel>Sort By</FieldLabel>
-                            <div className="flex flex-wrap gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="sort"
-                                        value="none"
-                                        defaultChecked={!sortBy || sortBy === 'none'}
-                                        className="accent-primary"
-                                    />
-                                    <span className="text-sm">No sort</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="sort"
-                                        value="rating"
-                                        defaultChecked={sortBy === 'rating'}
-                                        className="accent-primary"
-                                    />
-                                    <span className="text-sm">Rating</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="sort"
-                                        value="title"
-                                        defaultChecked={sortBy === 'title'}
-                                        className="accent-primary"
-                                    />
-                                    <span className="text-sm">Alphabetical</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="sort"
-                                        value="likes"
-                                        defaultChecked={sortBy === 'likes'}
-                                        className="accent-primary"
-                                    />
-                                    <span className="text-sm">Likes</span>
-                                </label>
-                            </div>
-                        </Field>
-
-                        {/* Actions */}
-                        <div className="flex gap-3 pt-2">
-                            <Button type="button" variant="outline" onClick={handleReset} className="flex-1">
-                                Reset
-                            </Button>
-                            <Button type="submit" className="flex-1">
-                                Apply Filters
-                            </Button>
-                        </div>
-                    </FieldGroup>
-                </Form>
-            )}
-        </div>
-    );
+const ZeroState: FC = () => {
+  return (
+    <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
+      <Empty>
+        <EmptyMedia variant="icon">
+          <BookOpen className="h-6 w-6" />
+        </EmptyMedia>
+        <EmptyHeader>
+          <EmptyTitle>No recipes yet</EmptyTitle>
+          <EmptyDescription>
+            Generate a recipe with Gemini to start building the community cookbook.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button asChild>
+            <Link to={href("/generate")}>Generate Recipe</Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
+    </div>
+  );
 };
 
+const FilterPanel: FC<{
+  isOpen: boolean;
+  onToggle: () => void;
+  availableTags: string[];
+}> = ({ isOpen, onToggle, availableTags }) => {
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const recipesPath = href("/recipes");
+  const isFiltering =
+    navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath;
+
+  const queryText = searchParams.get("q") || "";
+  const sortBy =
+    (searchParams.get("sort") as "rating" | "title" | "likes" | "none") ||
+    "none";
+  const initialSelectedTags =
+    searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const initialMinRating = Number(searchParams.get("minRating")) || 0;
+
+  const [minRating, setMinRating] = useState(initialMinRating);
+  const [selectedTags, setSelectedTags] =
+    useState<string[]>(initialSelectedTags);
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleLocalReset = () => {
+    formRef.current?.reset();
+    setMinRating(0);
+    setSelectedTags([]);
+  };
+
+  const hasFilters = Array.from(searchParams.entries()).some(
+    ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
+  );
+
+  return (
+    <div className="bg-card border rounded-xl mb-6 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <span className="font-medium">Filter Recipes</span>
+          {hasFilters && (
+            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+              Active
+            </span>
+          )}
+        </div>
+        {isOpen ? (
+          <ChevronUp className="w-4 h-4" />
+        ) : (
+          <ChevronDown className="w-4 h-4" />
+        )}
+      </button>
+
+      {isOpen && (
+        <Form
+          method="get"
+          action={recipesPath}
+          className="p-4 border-t"
+          ref={formRef}
+        >
+          {minRating > 0 && (
+            <input type="hidden" name="minRating" value={String(minRating)} />
+          )}
+          {selectedTags.length > 0 && (
+            <input
+              type="hidden"
+              name="tags"
+              value={selectedTags.join(",")}
+            />
+          )}
+
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="recipe-search">Search Recipes</FieldLabel>
+              <Input
+                id="recipe-search"
+                placeholder="e.g. Pasta, Salad, Garlic..."
+                defaultValue={queryText}
+                name="q"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel>Minimum Rating</FieldLabel>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    aria-label={`Minimum ${star} star${star === 1 ? "" : "s"}`}
+                    onClick={() =>
+                      setMinRating(star === minRating ? 0 : star)
+                    }
+                    className="p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Star
+                      className={`w-7 h-7 cursor-pointer transition-all ${
+                        star <= minRating
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-muted-foreground/30 hover:text-amber-400"
+                      }`}
+                    />
+                  </button>
+                ))}
+                {minRating > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMinRating(0)}
+                    className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                    aria-label="Clear minimum rating"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </Field>
+
+            {availableTags.length > 0 && (
+              <Field>
+                <FieldLabel>Popular Tags</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleTagToggle(tag)}
+                      className={`px-3 py-1.5 text-sm rounded-full border transition-all ${
+                        selectedTags.includes(tag)
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            )}
+
+            <Field>
+              <FieldLabel>Sort By</FieldLabel>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value="none"
+                    defaultChecked={!sortBy || sortBy === "none"}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm">No sort</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value="rating"
+                    defaultChecked={sortBy === "rating"}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm">Rating</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value="title"
+                    defaultChecked={sortBy === "title"}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm">Alphabetical</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value="likes"
+                    defaultChecked={sortBy === "likes"}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm">Likes</span>
+                </label>
+              </div>
+            </Field>
+
+            <div className="flex gap-3 pt-2">
+              {hasFilters ? (
+                <Button asChild variant="outline" className="flex-1">
+                  <Link to={recipesPath}>Reset</Link>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleLocalReset}
+                  className="flex-1"
+                >
+                  Reset
+                </Button>
+              )}
+              <Button type="submit" disabled={isFiltering} className="flex-1">
+                {isFiltering ? "Filtering..." : "Apply Filters"}
+              </Button>
+            </div>
+          </FieldGroup>
+        </Form>
+      )}
+    </div>
+  );
+};
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-    const { recipes, topTags } = loaderData;
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const [filterOpen, setFilterOpen] = useState(false);
+  const { recipes, topTags } = loaderData;
+  const [searchParams] = useSearchParams();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterKey = searchParams.toString();
 
-
-    if (!recipes || recipes.length === 0) {
-        const hasFilters = searchParams.toString().length > 0;
-        if (hasFilters) {
-            return (
-                <div className="p-4">
-                    <FilterPanel
-                        isOpen={filterOpen}
-                        onToggle={() => setFilterOpen(!filterOpen)}
-                        availableTags={topTags}
-                    />
-                    <div className="text-center py-12">
-                        <p className="text-muted-foreground">No recipes match your filters.</p>
-                        <Button
-                            variant="link"
-                            onClick={() => navigate('/recipes')}
-                            className="mt-2"
-                        >
-                            Clear all filters
-                        </Button>
-                    </div>
-                </div>
-            );
-        }
-        return <ZeroState />;
-    }
-
-    return (
-        <div>
-            <FilterPanel
-                isOpen={filterOpen}
-                onToggle={() => setFilterOpen(!filterOpen)}
-                availableTags={topTags}
-            />
-            <h3 className="mb-4">{recipes.length} recipes</h3>
-            <ItemGroup className='gap-4'>
-                {recipes.map((recipe: Recipe) => (
-                    <Item key={recipe.id} variant="outline">
-                        {recipe.imageUri && (
-                            <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
-                                <img
-                                    src={recipe.imageUri}
-                                    alt={recipe.title}
-                                    className="max-h-20 max-w-20 object-contain"
-                                />
-                            </ItemMedia>
-                        )}
-                        <ItemContent>
-                            <ItemTitle>{recipe.title}</ItemTitle>
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="flex" aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}>
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <Star
-                                            key={star}
-                                            className={`w-4 h-4 ${star <= (recipe.averageRating || 0)
-                                                ? "fill-amber-400 text-amber-400"
-                                                : "text-muted-foreground/30"
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <span>•</span>
-                                    <span>{recipe.likes || 0} likes</span>
-                                </div>
-                            </div>
-                            <ItemDescription>
-                                {recipe.tags?.join(", ") || "No tags"}
-                            </ItemDescription>
-                        </ItemContent>
-                        <ItemActions>
-                            <Button variant="outline" size="sm" asChild>
-                                <Link to={`/recipes/${recipe.id}`}>Open</Link>
-                            </Button>
-                        </ItemActions>
-                    </Item>
-                ))}
-            </ItemGroup>
-        </div>
+  if (!recipes || recipes.length === 0) {
+    const hasFilters = Array.from(searchParams.entries()).some(
+      ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
     );
+    if (hasFilters) {
+      return (
+        <div className="p-4">
+          <FilterPanel
+            key={filterKey}
+            isOpen={filterOpen}
+            onToggle={() => setFilterOpen(!filterOpen)}
+            availableTags={topTags}
+          />
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              No recipes match your filters.
+            </p>
+            <Button asChild variant="link" className="mt-2">
+              <Link to={href("/recipes")}>Clear all filters</Link>
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return <ZeroState />;
+  }
+
+  return (
+    <div>
+      <FilterPanel
+        key={filterKey}
+        isOpen={filterOpen}
+        onToggle={() => setFilterOpen(!filterOpen)}
+        availableTags={topTags}
+      />
+      <h3 className="mb-4 text-sm font-medium text-muted-foreground">
+        {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
+      </h3>
+      <ItemGroup className="gap-4">
+        {recipes.map((recipe: Recipe) => (
+          <Item key={recipe.id} variant="outline">
+            {isSafeImageUrl(recipe.imageUri) && (
+              <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
+                <img
+                  src={recipe.imageUri}
+                  alt={recipe.title}
+                  className="max-h-20 max-w-20 object-contain"
+                />
+              </ItemMedia>
+            )}
+            <ItemContent>
+              <ItemTitle>{recipe.title}</ItemTitle>
+              <div className="flex items-center gap-2 mb-2">
+                <div
+                  className="flex"
+                  aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`w-4 h-4 ${
+                        star <= (recipe.averageRating || 0)
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-muted-foreground/30"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span>•</span>
+                  <span>{recipe.likes || 0} likes</span>
+                </div>
+              </div>
+              <ItemDescription>
+                {recipe.tags?.join(", ") || "No tags"}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={href("/recipes/:recipeId", { recipeId: recipe.id })}>
+                  Open
+                </Link>
+              </Button>
+            </ItemActions>
+          </Item>
+        ))}
+      </ItemGroup>
+    </div>
+  );
 }

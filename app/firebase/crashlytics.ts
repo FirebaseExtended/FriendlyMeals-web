@@ -1,0 +1,76 @@
+import {
+  breadcrumbs,
+  flush,
+  getCrashlytics,
+  recordError,
+  type Crashlytics,
+} from "firebase/crashlytics";
+import { firebaseApp } from "./firebase";
+import { firebaseConfig, isFirebaseConfigured } from "./firebase-config";
+
+let clientCrashlytics: Crashlytics | null = null;
+let serverCrashlytics: Crashlytics | null = null;
+
+function canUseCrashlytics(): boolean {
+  return isFirebaseConfigured && Boolean(firebaseConfig.appId);
+}
+
+export function initBrowserCrashlytics(): Crashlytics | null {
+  if (typeof window === "undefined" || !canUseCrashlytics()) {
+    return null;
+  }
+  if (!clientCrashlytics) {
+    clientCrashlytics = getCrashlytics(firebaseApp, {
+      features: [breadcrumbs()],
+    });
+  }
+  return clientCrashlytics;
+}
+
+export function reportClientError(
+  error: unknown,
+  attributes?: Record<string, string>
+): void {
+  console.error("[Client Error]", error);
+  const crashlytics = initBrowserCrashlytics();
+  if (crashlytics) {
+    recordError(crashlytics, error, attributes);
+  }
+}
+
+export function reportServerError(error: unknown, request: Request): void {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+
+  // Emit structured JSON so Cloud Run / Cloud Logging indexes severity and request metadata
+  console.error(
+    JSON.stringify({
+      severity: "ERROR",
+      message,
+      stack,
+      httpRequest: {
+        requestMethod: request.method,
+        requestUrl: request.url,
+      },
+    })
+  );
+
+  if (!canUseCrashlytics()) {
+    return;
+  }
+
+  try {
+    if (!serverCrashlytics) {
+      serverCrashlytics = getCrashlytics(firebaseApp);
+    }
+    recordError(serverCrashlytics, error, {
+      runtime: "ssr",
+      method: request.method,
+      url: request.url,
+    });
+    // Flush immediately so Cloud Run request-scoped CPU throttling does not stall OTLP batches
+    void flush(serverCrashlytics).catch(() => {});
+  } catch {
+    // Never fail an SSR request if telemetry reporting encounters an error
+  }
+}

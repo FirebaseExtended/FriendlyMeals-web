@@ -1,45 +1,176 @@
 rules_version = '2';
 
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: recipes
+// Document ID: auto-generated recipeId
+// Public read: yes (required for unauthenticated Cloud Run SSR loaders and
+//              Cloud CDN caching; contains no PII, only authorId UID)
+// Fields:
+//   - title: string (required, 1..200 chars)
+//   - instructions: string (required, 1..25000 chars)
+//   - ingredients: list<string> (required, max 100 items)
+//   - tags: list<string> (required, max 20 items)
+//   - prepTime: string (required, 1..100 chars)
+//   - cookTime: string (required, 1..100 chars)
+//   - servings: string (required, 1..100 chars)
+//   - authorId: string (required, immutable, matches request.auth.uid)
+//   - imageUri: string (optional, http/https URL <= 2048 chars)
+//
+// Subcollection: recipes/{recipeId}/reviews
+// Document ID: {userId} (deterministic one-review-per-user-per-recipe)
+// Public read: yes (aggregated in SSR/client pipelines; contains no PII)
+// Fields:
+//   - recipeId: string (required, immutable, matches parent {recipeId})
+//   - userId: string (required, immutable, matches request.auth.uid and {reviewId})
+//   - rating: number (required, 1..5)
+//   - text: string (required, 0..2000 chars)
+//
+// Collection: likes
+// Document ID: {recipeId}_{userId} (deterministic one-like-per-user-per-recipe)
+// Public read: yes (aggregated in SSR/client pipelines; contains no PII)
+// Fields:
+//   - recipeId: string (required, immutable, 1..128 chars)
+//   - userId: string (required, immutable, matches request.auth.uid)
+//
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Recipes collection - root level
-    // Anyone authenticated can read recipes
-    // Only the author can create/delete their own recipes
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string
+        && request.resource.data[field].size() >= minLen
+        && request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalUrl(field) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string
+            && request.resource.data[field].size() <= 2048
+            && (request.resource.data[field].matches("^https://.*")
+                || request.resource.data[field].matches("^http://.*")));
+    }
+
+    // Validate element types/bounds for small tag lists (up to first 5 checked explicitly + list bound)
+    function isValidBoundedList(field, maxLen) {
+      return request.resource.data[field] is list
+        && request.resource.data[field].size() <= maxLen
+        && (request.resource.data[field].size() == 0
+            || (request.resource.data[field][0] is string
+                && request.resource.data[field][0].size() <= 200));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidRecipe() {
+      return hasRequiredFields([
+          'title',
+          'instructions',
+          'ingredients',
+          'tags',
+          'prepTime',
+          'cookTime',
+          'servings',
+          'authorId'
+        ])
+        && hasOnlyAllowedFields([
+          'title',
+          'instructions',
+          'ingredients',
+          'tags',
+          'prepTime',
+          'cookTime',
+          'servings',
+          'authorId',
+          'imageUri'
+        ])
+        && validStringLength('title', 1, 200)
+        && validStringLength('instructions', 1, 25000)
+        && validStringLength('prepTime', 1, 100)
+        && validStringLength('cookTime', 1, 100)
+        && validStringLength('servings', 1, 100)
+        && validStringLength('authorId', 1, 128)
+        && isValidBoundedList('ingredients', 100)
+        && isValidBoundedList('tags', 20)
+        && isValidOptionalUrl('imageUri');
+    }
+
+    function isValidReview(recipeId, reviewId) {
+      return hasRequiredFields(['recipeId', 'userId', 'rating', 'text'])
+        && hasOnlyAllowedFields(['recipeId', 'userId', 'rating', 'text'])
+        && request.resource.data.recipeId == recipeId
+        && request.resource.data.userId == request.auth.uid
+        && reviewId == request.auth.uid
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && validStringLength('text', 0, 2000);
+    }
+
+    function isValidLike(likeId) {
+      return hasRequiredFields(['userId', 'recipeId'])
+        && hasOnlyAllowedFields(['userId', 'recipeId'])
+        && validStringLength('recipeId', 1, 128)
+        && request.resource.data.userId == request.auth.uid
+        && likeId == request.resource.data.recipeId + "_" + request.auth.uid;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
     match /recipes/{recipeId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null 
-                    && request.resource.data.authorId == request.auth.uid;
-      // Note: Updates to denormalized averageRating/likes are no longer needed 
-      // as they are calculated on-the-fly via subqueries.
-      allow update: if request.auth != null 
-                    && resource.data.authorId == request.auth.uid;
-      allow delete: if request.auth != null 
-                            && resource.data.authorId == request.auth.uid;
-      
-      // Reviews subcollection under recipes
-      // Anyone authenticated can read reviews
-      // Users can only create reviews with their own userId
-      // Users can only update/delete their own reviews
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.authorId) && isValidRecipe();
+      allow update: if isOwner(resource.data.authorId)
+                    && request.resource.data.authorId == resource.data.authorId
+                    && isValidRecipe();
+      allow delete: if isOwner(resource.data.authorId);
+
       match /reviews/{reviewId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null 
-                      && request.resource.data.userId == request.auth.uid;
-        allow delete: if request.auth != null 
-                              && resource.data.userId == request.auth.uid;
+        allow read: if true;
+        allow create: if isAuthenticated()
+                      && exists(/databases/$(database)/documents/recipes/$(recipeId))
+                      && isValidReview(recipeId, reviewId);
+        allow update: if isOwner(resource.data.userId)
+                      && request.resource.data.userId == resource.data.userId
+                      && request.resource.data.recipeId == resource.data.recipeId
+                      && isValidReview(recipeId, reviewId);
+        allow delete: if isOwner(resource.data.userId);
       }
     }
-    
-    // Likes collection - root level (bookmarks)
-    // Anyone authenticated can read likes
-    // Users can only create likes with their own userId
-    // Users can only delete their own likes
+
     match /likes/{likeId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null 
-                    && request.resource.data.userId == request.auth.uid;
-      allow delete: if request.auth != null 
-                    && resource.data.userId == request.auth.uid;
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && exists(/databases/$(database)/documents/recipes/$(request.resource.data.recipeId))
+                    && isValidLike(likeId);
+      allow update: if isOwner(resource.data.userId)
+                    && request.resource.data.userId == resource.data.userId
+                    && request.resource.data.recipeId == resource.data.recipeId
+                    && isValidLike(likeId);
+      allow delete: if isOwner(resource.data.userId);
     }
   }
 }
