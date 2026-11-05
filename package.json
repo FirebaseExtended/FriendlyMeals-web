@@ -9,10 +9,10 @@
   "scripts": {
     "dev": "react-router dev",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "NODE_ENV=production react-router-serve ./build/server/index.js",
     "lint": "eslint .",
     "typecheck": "react-router typegen && tsc",
-    "upload:sourcemaps": "firebase crashlytics:sourcemap:upload \"build/client/assets/*.map\""
+    "upload:sourcemaps": "firebase crashlytics:sourcemap:upload build"
   },
   "dependencies": {
     "@firebase-oss/ui-core": "^7.1.0",

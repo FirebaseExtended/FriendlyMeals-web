@@ -1,7 +1,7 @@
 import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 
 // Paste output of `firebase apps:sdkconfig WEB` here for local development
-const firebaseConfig: FirebaseOptions = {};
+const firebaseConfig: FirebaseOptions & Record<string, unknown> = {};
 
 export function initializeFirebaseApp(): FirebaseApp {
   if (firebaseConfig.apiKey) {

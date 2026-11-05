@@ -161,6 +161,12 @@ service cloud.firestore {
       }
     }
 
+    // Firestore Enterprise pipeline `subcollection("reviews")` subqueries are
+    // authorized by Security Rules as collection-group reads across `{path=**}/reviews`.
+    match /{path=**}/reviews/{reviewId} {
+      allow read: if true;
+    }
+
     match /likes/{likeId} {
       allow read: if true;
       allow create: if isAuthenticated()

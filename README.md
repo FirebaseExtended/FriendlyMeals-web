@@ -73,7 +73,7 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 
 - **App Check**: Register your Web app with reCAPTCHA Enterprise (and manage localhost debug tokens) in [App Check > Apps](https://console.firebase.google.com/project/_/appcheck/apps), then set `VITE_RECAPTCHA_SITE_KEY` (and optional `VITE_APPCHECK_DEBUG_TOKEN` in `.env.local` for local dev). Enforce App Check on **Firebase AI Logic** in [App Check > APIs](https://console.firebase.google.com/project/_/appcheck/products). Leave **Cloud Firestore** unenforced so Cloud Run SSR `loader`s can read public recipes without a browser reCAPTCHA token.
 - **App Hosting**: Connect your GitHub repository and create the `friendly-meals` backend in [App Hosting](https://console.firebase.google.com/project/_/apphosting) to deploy the SSR server and static assets (`apphosting.yaml`).
-- **Crashlytics**: View client and SSR crash reports in [Crashlytics](https://console.firebase.google.com/project/_/crashlytics). After running `npm run build`, upload the hidden sourcemaps in `build/client` for deobfuscated stack traces:
+- **Crashlytics**: View client and SSR crash reports in [Crashlytics](https://console.firebase.google.com/project/_/crashlytics). After running `npm run build`, upload the hidden sourcemaps in `build` for deobfuscated stack traces:
 
   ```bash
   npm run upload:sourcemaps -- --app <YOUR_FIREBASE_WEB_APP_ID>
