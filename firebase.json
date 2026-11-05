@@ -3,7 +3,7 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json",
     "edition": "enterprise",
-    "database": "default"
+    "database": "friendlymeals"
   },
   "apphosting": {
     "backendId": "friendly-meals",

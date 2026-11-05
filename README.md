@@ -28,10 +28,10 @@ FriendlyMeals is an AI-powered recipe generator and community cookbook built wit
 
 3. **Provision Firestore Enterprise, Indexes, and Security Rules:**
 
-   Firestore Enterprise requires a named database ID rather than `(default)`. This repo targets `"default"` (without parentheses) in `firebase.json` and `app/firebase/data.ts`:
+   Firestore Enterprise requires a named database ID rather than `(default)`. This repo targets `"friendlymeals"` in `firebase.json` and `app/firebase/data.ts`:
 
    ```bash
-   firebase firestore:databases:create default \
+   firebase firestore:databases:create friendlymeals \
      --location=nam5 \
      --edition=enterprise \
      --firestore-data-access=ENABLED \

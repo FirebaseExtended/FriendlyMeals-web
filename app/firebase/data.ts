@@ -64,8 +64,8 @@ export interface RecipeFilters {
   sort?: string;
 }
 
-// Firestore Enterprise requires a named database ID (here "default", matching firebase.json)
-export const db = getFirestore(firebaseApp, "default");
+// Firestore Enterprise requires a named database ID (here "friendlymeals", matching firebase.json)
+export const db = getFirestore(firebaseApp, "friendlymeals");
 
 function normalizeRecipe(id: string, data: DocumentData): Recipe {
   return {
