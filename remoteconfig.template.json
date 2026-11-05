@@ -1,0 +1,19 @@
+{
+  "conditions": [],
+  "parameters": {
+    "recipe_model": {
+      "defaultValue": {
+        "value": "gemini-3.8-flash"
+      },
+      "description": "Gemini model used by generateStructuredJsonRecipe",
+      "valueType": "STRING"
+    },
+    "recipe_system_prompt": {
+      "defaultValue": {
+        "value": "You are a friendly chef creating approachable home-cooked recipes. Write clear step-by-step Markdown instructions, practical prep and cook times, and 2 to 5 concise tags."
+      },
+      "description": "System instruction for Gemini recipe generation",
+      "valueType": "STRING"
+    }
+  }
+}

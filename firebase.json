@@ -5,6 +5,9 @@
     "edition": "enterprise",
     "database": "friendlymeals"
   },
+  "remoteconfig": {
+    "template": "remoteconfig.template.json"
+  },
   "apphosting": {
     "backendId": "friendly-meals",
     "rootDir": "/",

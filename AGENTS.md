@@ -11,7 +11,7 @@ Before editing Firebase or React Router code, consult the matching skill under `
 - `.agents/skills/firebase-firestore/SKILL.md`: Firestore Enterprise provisioning, indexes, and `firebase/firestore/pipelines` queries (`references/enterprise/web_sdk_usage.md`).
 - `.agents/skills/firestore-rules-creation/SKILL.md`: Authoring schema-validated Firestore Security Rules (`firestore.rules`).
 - `.agents/skills/firebase-auth-basics/SKILL.md`: Client-side Firebase Authentication and UID-scoped Security Rules.
-- `.agents/skills/firebase-remote-config-basics/SKILL.md`: Managing Remote Config parameters (`recipe_system_prompt`, `recipe_model`).
+- `.agents/skills/firebase-remote-config-basics/SKILL.md`: Managing Remote Config parameters (`remoteconfig.template.json`: `recipe_system_prompt`, `recipe_model`).
 - `.agents/skills/firebase-crashlytics/SKILL.md`: Reporting client and SSR errors (`flush` on Cloud Run) and uploading hidden sourcemaps.
 - `.agents/skills/firebase-app-hosting-basics/SKILL.md`: Deploying SSR apps to Cloud Run + Cloud CDN via Firebase App Hosting (`apphosting.yaml` and `firebase.json`).
 
