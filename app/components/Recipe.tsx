@@ -5,6 +5,7 @@ import { Clock, FileText, Flame, Heart, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/firebase/data";
 import { useAuthUser } from "@/firebase/auth";
+import { cn } from "@/lib/utils";
 
 function isSafeImageUrl(url: string | undefined): url is string {
   return Boolean(
@@ -36,12 +37,14 @@ interface RecipeDetailProps {
   recipe: Recipe;
   isLiked?: boolean;
   readonly?: boolean;
+  ssr?: boolean;
 }
 
 const RecipeDetail: FC<RecipeDetailProps> = ({
   recipe,
   isLiked = false,
   readonly = false,
+  ssr = false,
 }) => {
   const navigate = useNavigate();
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
@@ -116,7 +119,12 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
   return (
     <div className="flex items-center flex-col gap-8">
-      <div className="bg-background w-full relative max-w-2xl mx-auto shadow-sm border rounded-xl overflow-hidden">
+      <div
+        className={cn(
+          "bg-background w-full relative max-w-2xl mx-auto shadow-sm border rounded-xl overflow-hidden",
+          ssr && "ssr"
+        )}
+      >
         {/* Top Banner Section */}
         <div className="relative w-full aspect-[16/7] bg-muted">
           {isSafeImageUrl(recipe.imageUri) ? (

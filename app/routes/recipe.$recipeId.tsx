@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { data, href, redirect, useRevalidator } from "react-router";
+import { useEffect, useState } from "react";
+import { data, href, redirect } from "react-router";
 import type { Route } from "./+types/recipe.$recipeId";
 import RecipeDetail from "@/components/Recipe";
 import {
@@ -46,6 +46,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       recipe,
       isLiked: false,
       checkedLikesForUid: null as string | null,
+      ssr: true,
     },
     {
       headers: { "Cache-Control": PUBLIC_RECIPE_CACHE_CONTROL },
@@ -72,6 +73,7 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
     recipe,
     isLiked,
     checkedLikesForUid: user?.uid ?? null,
+    ssr: false,
   };
 }
 
@@ -135,20 +137,51 @@ export async function clientAction({ request, params }: Route.ClientActionArgs) 
 }
 
 export default function RecipePage({ loaderData }: Route.ComponentProps) {
-  const { recipe, isLiked, checkedLikesForUid } = loaderData;
+  const { recipe, isLiked, checkedLikesForUid, ssr } = loaderData;
   const { user, authReady } = useAuthUser();
-  const revalidator = useRevalidator();
+  const [clientLikedLookup, setClientLikedLookup] = useState<{
+    recipeId: string;
+    uid: string;
+    liked: boolean;
+  } | null>(null);
 
   // If a signed-in user hard-refreshes an SSR-rendered recipe page, hydrate their liked state once
+  // without re-running clientLoader (preserving the SSR recipe payload).
   useEffect(() => {
-    if (
-      authReady &&
-      (user?.uid ?? null) !== checkedLikesForUid &&
-      revalidator.state === "idle"
-    ) {
-      revalidator.revalidate();
+    if (!authReady) {
+      return;
     }
-  }, [authReady, user?.uid, checkedLikesForUid, revalidator]);
+    const uid = user?.uid ?? null;
+    if (!uid || uid === checkedLikesForUid) {
+      return;
+    }
+    let cancelled = false;
+    isRecipeLikedByUser(uid, recipe.id)
+      .then((liked) => {
+        if (!cancelled) {
+          setClientLikedLookup({ recipeId: recipe.id, uid, liked });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setClientLikedLookup({ recipeId: recipe.id, uid, liked: false });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.uid, checkedLikesForUid, recipe.id]);
 
-  return <RecipeDetail recipe={recipe} isLiked={isLiked} />;
+  const resolvedIsLiked =
+    authReady && !user
+      ? false
+      : checkedLikesForUid && (!authReady || checkedLikesForUid === user?.uid)
+        ? isLiked
+        : user &&
+            clientLikedLookup?.recipeId === recipe.id &&
+            clientLikedLookup.uid === user.uid
+          ? clientLikedLookup.liked
+          : isLiked;
+
+  return <RecipeDetail recipe={recipe} isLiked={resolvedIsLiked} ssr={ssr} />;
 }

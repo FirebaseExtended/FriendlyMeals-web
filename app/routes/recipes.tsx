@@ -35,6 +35,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
+import { cn } from "@/lib/utils";
 
 const PUBLIC_RECIPES_CACHE_CONTROL =
   "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
@@ -89,20 +90,24 @@ async function loadRecipesCatalog(request: Request) {
 // Initial HTML request renders on Cloud Run so search engines and agents get full HTML
 export async function loader({ request }: Route.LoaderArgs) {
   const payload = await loadRecipesCatalog(request);
-  return data(payload, {
-    headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
-  });
+  return data(
+    { ...payload, ssr: true },
+    {
+      headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
+    }
+  );
 }
 
 // Subsequent navigations and filter submissions run directly in the browser against Firestore
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  return loadRecipesCatalog(request);
+  const payload = await loadRecipesCatalog(request);
+  return { ...payload, ssr: false };
 }
 
-const ZeroState: FC = () => {
+const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
   return (
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
-      <Empty>
+      <Empty className={cn(ssr && "ssr")}>
         <EmptyMedia variant="icon">
           <BookOpen className="h-6 w-6" />
         </EmptyMedia>
@@ -126,7 +131,8 @@ const FilterPanel: FC<{
   isOpen: boolean;
   onToggle: () => void;
   availableTags: string[];
-}> = ({ isOpen, onToggle, availableTags }) => {
+  ssr: boolean;
+}> = ({ isOpen, onToggle, availableTags, ssr }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
@@ -164,7 +170,12 @@ const FilterPanel: FC<{
   );
 
   return (
-    <div className="bg-card border rounded-xl mb-6 overflow-hidden">
+    <div
+      className={cn(
+        "bg-card border rounded-xl mb-6 overflow-hidden",
+        ssr && "ssr"
+      )}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -345,7 +356,7 @@ const FilterPanel: FC<{
 };
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const { recipes, topTags } = loaderData;
+  const { recipes, topTags, ssr } = loaderData;
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
   const filterKey = searchParams.toString();
@@ -362,8 +373,9 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             isOpen={filterOpen}
             onToggle={() => setFilterOpen(!filterOpen)}
             availableTags={topTags}
+            ssr={ssr}
           />
-          <div className="text-center py-12">
+          <div className={cn("text-center py-12 rounded-xl", ssr && "ssr")}>
             <p className="text-muted-foreground">
               No recipes match your filters.
             </p>
@@ -374,7 +386,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         </div>
       );
     }
-    return <ZeroState />;
+    return <ZeroState ssr={ssr} />;
   }
 
   return (
@@ -384,13 +396,18 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         isOpen={filterOpen}
         onToggle={() => setFilterOpen(!filterOpen)}
         availableTags={topTags}
+        ssr={ssr}
       />
       <h3 className="mb-4 text-sm font-medium text-muted-foreground">
         {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
       </h3>
       <ItemGroup className="gap-4">
         {recipes.map((recipe: Recipe) => (
-          <Item key={recipe.id} variant="outline">
+          <Item
+            key={recipe.id}
+            variant="outline"
+            className={cn(ssr && "ssr")}
+          >
             {isSafeImageUrl(recipe.imageUri) && (
               <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
                 <img

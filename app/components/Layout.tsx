@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import { signOutUser, useAuthUser } from "@/firebase/auth";
+import { useWasServerRendered } from "@/lib/ssr";
+import { cn } from "@/lib/utils";
 
 const MenuLink: FC<{ to: string; label: string }> = ({ to, label }) => {
   const active = useMatch({ path: to, end: false });
@@ -32,6 +34,7 @@ const MenuLink: FC<{ to: string; label: string }> = ({ to, label }) => {
 };
 
 const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
+  const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -56,7 +59,12 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-b">
+      <header
+        className={cn(
+          "flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-b",
+          isSsr && "ssr"
+        )}
+      >
         <Link
           to={href("/")}
           className="flex items-center gap-2 text-xl font-bold hover:opacity-90 transition-opacity"
@@ -110,6 +118,7 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const isSsr = useWasServerRendered();
   let heading = "Something went wrong";
   let details = "An unexpected error occurred while loading this page.";
 
@@ -127,7 +136,12 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <AppShell>
-      <div className="max-w-xl mx-auto py-16 px-4 text-center space-y-4">
+      <div
+        className={cn(
+          "max-w-xl mx-auto my-12 py-12 px-6 rounded-xl text-center space-y-4",
+          isSsr && "ssr"
+        )}
+      >
         <h1 className="text-3xl font-bold text-foreground">{heading}</h1>
         <p className="text-muted-foreground">{details}</p>
         <div className="flex justify-center gap-3 pt-2">

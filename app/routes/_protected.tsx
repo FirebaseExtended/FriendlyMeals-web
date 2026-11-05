@@ -2,6 +2,8 @@ import { createContext, href, Outlet, redirect } from "react-router";
 import type { Route } from "./+types/_protected";
 import { Spinner } from "@/components/ui/spinner";
 import { waitForAuthReady } from "@/firebase/auth";
+import { useWasServerRendered } from "@/lib/ssr";
+import { cn } from "@/lib/utils";
 
 export interface AuthenticatedUserSummary {
   uid: string;
@@ -62,9 +64,16 @@ export async function clientLoader({
 }
 
 export function HydrateFallback() {
+  const isSsr = useWasServerRendered();
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
-      <div className="flex items-center gap-3 text-muted-foreground">
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-xl px-6 py-4 text-muted-foreground",
+          isSsr && "ssr"
+        )}
+      >
         <Spinner className="h-5 w-5" />
         <span>Checking authentication...</span>
       </div>

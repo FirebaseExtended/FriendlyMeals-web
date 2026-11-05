@@ -1,6 +1,8 @@
 import { href, Link } from "react-router";
 import { BookOpen, Flame, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useWasServerRendered } from "@/lib/ssr";
+import { cn } from "@/lib/utils";
 
 export function meta() {
   return [
@@ -14,8 +16,15 @@ export function meta() {
 }
 
 export default function HomePage() {
+  const isSsr = useWasServerRendered();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-orange-50 dark:from-emerald-950 dark:via-gray-900 dark:to-orange-950">
+    <div
+      className={cn(
+        "min-h-screen bg-gradient-to-br from-emerald-50 via-white to-orange-50 dark:from-emerald-950 dark:via-gray-900 dark:to-orange-950",
+        isSsr && "ssr"
+      )}
+    >
       <div className="flex flex-col items-center justify-center px-6 pt-16 pb-12">
         <div className="relative mb-8">
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/30">

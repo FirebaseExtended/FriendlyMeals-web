@@ -7,6 +7,8 @@ import { SignInAuthScreen } from "@/components/sign-in-auth-screen";
 import { SignUpAuthScreen } from "@/components/sign-up-auth-screen";
 import { Spinner } from "@/components/ui/spinner";
 import { getFirebaseUI, waitForAuthReady } from "@/firebase/auth";
+import { useWasServerRendered } from "@/lib/ssr";
+import { cn } from "@/lib/utils";
 
 export function meta() {
   return [
@@ -39,9 +41,16 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 clientLoader.hydrate = true as const;
 
 export function HydrateFallback() {
+  const isSsr = useWasServerRendered();
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4">
-      <div className="flex items-center gap-2 text-muted-foreground">
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-xl px-6 py-4 text-muted-foreground",
+          isSsr && "ssr"
+        )}
+      >
         <Spinner className="h-5 w-5" />
         <span>Loading sign-in...</span>
       </div>

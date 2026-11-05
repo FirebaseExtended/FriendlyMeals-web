@@ -139,3 +139,12 @@
     --primary-foreground: var(--color-black);
   }
 }
+
+/* Visual indicator for server-rendered (SSR) components */
+.ssr {
+  border: 2px solid var(--color-blue-500, #3b82f6);
+}
+
+.dark .ssr {
+  border-color: var(--color-blue-400, #60a5fa);
+}

@@ -9,6 +9,8 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import { Button } from "@/components/ui/button";
+import { useWasServerRendered } from "@/lib/ssr";
+import { cn } from "@/lib/utils";
 import "./index.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -35,6 +37,7 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const isSsr = useWasServerRendered();
   let message = "Oops!";
   let details = "An unexpected error occurred.";
   let stack: string | undefined;
@@ -55,7 +58,12 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="container mx-auto max-w-2xl p-6 pt-16 space-y-4">
+    <main
+      className={cn(
+        "container mx-auto my-12 max-w-2xl rounded-xl p-6 space-y-4",
+        isSsr && "ssr"
+      )}
+    >
       <h1 className="text-4xl font-bold text-destructive">{message}</h1>
       <p className="text-lg text-muted-foreground">{details}</p>
       <div>
