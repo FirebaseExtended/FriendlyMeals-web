@@ -6,8 +6,8 @@ import {
 } from "@react-router/dev/routes";
 
 export default [
-  // Landing page
-  index("routes/home.tsx"),
+  // Redirect root to the recipes catalog
+  index("routes/_index.ts"),
 
   // Componentless Markdown resource route for agents and curl
   route("recipes/:recipeId.md", "routes/recipe.$recipeId.md.ts"),

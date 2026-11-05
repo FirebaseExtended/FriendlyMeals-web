@@ -23,7 +23,7 @@ Before editing Firebase or React Router code, consult the matching skill under `
    - `/recipes/:recipeId.md` (`app/routes/recipe.$recipeId.md.ts`) is a componentless resource route returning raw `text/markdown; charset=utf-8`. Link to it with `<Link reloadDocument>`.
 2. **Client-Side Auth Guards (IndexedDB, Not Cookies)**:
    - Firebase Auth stores tokens in browser IndexedDB, so Node SSR loaders cannot read `auth.currentUser`.
-   - Protected routes (`/generate`) sit behind `app/routes/_protected.tsx`, which guards access on the client via `clientMiddleware`, `clientLoader`, and `HydrateFallback`.
+   - Protected routes (`/generate`) sit behind `app/routes/_protected.tsx`, which SSRs the static UI immediately (with submit disabled until auth resolves), guards SPA navigations via `clientMiddleware`, and silently redirects signed-out initial loads to `/login`.
    - Mutations on `/recipes/:recipeId` (likes, ratings, deletes) run through `clientAction` + `useFetcher` so browser Auth tokens attach automatically and `clientLoader` revalidates Firestore aggregates.
 3. **Firebase Initialization & Browser-Safe Services**:
    - `app/firebase/firebase-config.ts` uses `firebaseConfig` when pasted (`firebase apps:sdkconfig WEB`), and falls back to zero-argument `initializeApp()` for automatic initialization on Firebase App Hosting.

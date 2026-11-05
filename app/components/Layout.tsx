@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FC, type ReactNode } from "react";
+import { type FC, type ReactNode } from "react";
 import {
   href,
   isRouteErrorResponse,
@@ -6,7 +6,6 @@ import {
   Outlet,
   useMatch,
   useNavigate,
-  useRevalidator,
 } from "react-router";
 import { Flame, LogOut } from "lucide-react";
 import type { Route } from "./+types/Layout";
@@ -37,24 +36,10 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
   const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
   const navigate = useNavigate();
-  const revalidator = useRevalidator();
-  const prevUidRef = useRef<string | null>(null);
-
-  // Revalidate active clientLoaders (such as _protected) if the user signs out in another tab
-  useEffect(() => {
-    if (!authReady) {
-      return;
-    }
-    const nextUid = user?.uid ?? null;
-    if (prevUidRef.current && !nextUid) {
-      revalidator.revalidate();
-    }
-    prevUidRef.current = nextUid;
-  }, [authReady, user?.uid, revalidator]);
 
   const handleSignOut = async () => {
-    await signOutUser();
     navigate(href("/recipes"));
+    await signOutUser();
   };
 
   return (
@@ -66,7 +51,7 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
         )}
       >
         <Link
-          to={href("/")}
+          to={href("/recipes")}
           className="flex items-center gap-2 text-xl font-bold hover:opacity-90 transition-opacity"
         >
           <Flame className="w-5 h-5 text-emerald-600" />
@@ -85,30 +70,30 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
             </NavigationMenuList>
           </NavigationMenu>
 
-          {authReady ? (
-            user ? (
-              <div className="flex items-center gap-2 pl-2 border-l">
-                <span className="text-xs text-muted-foreground max-w-[160px] truncate hidden md:inline">
-                  {user.displayName || user.email || "Signed in"}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSignOut}
-                  className="gap-1.5"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
-                </Button>
-              </div>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link to={href("/login")}>Sign In</Link>
-              </Button>
-            )
+          {!authReady ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled
+              aria-hidden="true"
+              className="w-28"
+            />
+          ) : user ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSignOut}
+              className="w-28 gap-1.5"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </Button>
           ) : (
-            <div className="w-20 h-8" aria-hidden="true" />
+            <Button asChild variant="outline" size="sm" className="w-28">
+              <Link to={href("/login")}>Sign In</Link>
+            </Button>
           )}
         </div>
       </header>
@@ -144,12 +129,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       >
         <h1 className="text-3xl font-bold text-foreground">{heading}</h1>
         <p className="text-muted-foreground">{details}</p>
-        <div className="flex justify-center gap-3 pt-2">
-          <Button asChild variant="outline">
-            <Link to={href("/recipes")}>Browse Recipes</Link>
-          </Button>
+        <div className="flex justify-center pt-2">
           <Button asChild>
-            <Link to={href("/")}>Back to Home</Link>
+            <Link to={href("/recipes")}>Browse Recipes</Link>
           </Button>
         </div>
       </div>

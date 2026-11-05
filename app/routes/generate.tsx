@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { href, useNavigate, useRouteLoaderData } from "react-router";
+import { href, useNavigate } from "react-router";
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { IngredientInput } from "@/components/IngredientInput";
 import RecipeDetail from "@/components/Recipe";
 import { Button } from "@/components/ui/button";
-import type { clientLoader as protectedClientLoader } from "./_protected";
 import { generateStructuredJsonRecipe } from "@/firebase/firebaseAILogic";
 import {
   publishRecipe,
   type NewRecipeInput,
   type Recipe,
 } from "@/firebase/data";
-import { waitForAuthReady } from "@/firebase/auth";
+import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
+import { useWasServerRendered } from "@/lib/ssr";
+import { cn } from "@/lib/utils";
 
 export function meta() {
   return [
@@ -22,8 +23,8 @@ export function meta() {
 }
 
 export default function GeneratePage() {
-  const protectedData =
-    useRouteLoaderData<typeof protectedClientLoader>("routes/_protected");
+  const isSsr = useWasServerRendered();
+  const { user, authReady } = useAuthUser();
   const [loadingMessage, setLoadingMessage] = useState<
     "Generating recipe" | "Publishing recipe" | null
   >(null);
@@ -66,7 +67,7 @@ export default function GeneratePage() {
   const handlePublish = async () => {
     if (!generatedRecipe) return;
 
-    const uid = protectedData?.user.uid ?? (await waitForAuthReady())?.uid;
+    const uid = user?.uid ?? (await waitForAuthReady())?.uid;
     if (!uid) {
       navigate(
         `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
@@ -94,7 +95,7 @@ export default function GeneratePage() {
     ? {
         ...generatedRecipe,
         id: "preview",
-        authorId: protectedData?.user.uid ?? "",
+        authorId: user?.uid ?? "",
         averageRating: 0,
         likes: 0,
       }
@@ -102,7 +103,12 @@ export default function GeneratePage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto p-4">
-      <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+      <div
+        className={cn(
+          "bg-card border rounded-xl overflow-hidden shadow-sm",
+          isSsr && "ssr"
+        )}
+      >
         <button
           type="button"
           onClick={() => setIsInputExpanded(!isInputExpanded)}
@@ -123,6 +129,7 @@ export default function GeneratePage() {
           <div className="p-4 border-t bg-muted/10 space-y-4">
             <IngredientInput
               isLoading={loadingMessage || false}
+              submitDisabled={!authReady || !user}
               handleSubmit={handleGenerateRecipe}
             />
             {errorMessage && (

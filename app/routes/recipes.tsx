@@ -1,4 +1,4 @@
-import { useRef, useState, type FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import {
   data,
   Form,
@@ -6,8 +6,17 @@ import {
   Link,
   useNavigation,
   useSearchParams,
+  useSubmit,
 } from "react-router";
-import { BookOpen, ChevronDown, ChevronUp, Search, Star, X } from "lucide-react";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  SlidersHorizontal,
+  Star,
+  X,
+} from "lucide-react";
 import type { Route } from "./+types/recipes";
 import {
   getTop5Tags,
@@ -25,6 +34,7 @@ import {
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
   Item,
@@ -127,6 +137,134 @@ const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
   );
 };
 
+const SEARCH_DEBOUNCE_MS = 300;
+
+const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
+  const [searchParams] = useSearchParams();
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const recipesPath = href("/recipes");
+
+  const urlQuery = searchParams.get("q") || "";
+  const [value, setValue] = useState(urlQuery);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSubmittedRef = useRef(urlQuery);
+
+  // Sync input if `q` changes externally (Reset, Clear all, or browser Back/Forward)
+  useEffect(() => {
+    if (
+      urlQuery !== lastSubmittedRef.current &&
+      debounceTimerRef.current === null
+    ) {
+      setValue(urlQuery);
+      lastSubmittedRef.current = urlQuery;
+    }
+  }, [urlQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const submitSearch = (nextValue: string, immediate = false) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    const run = () => {
+      debounceTimerRef.current = null;
+      const trimmed = nextValue.trim();
+      lastSubmittedRef.current = trimmed ? nextValue : "";
+      const nextParams = new URLSearchParams(searchParams);
+      if (trimmed) {
+        nextParams.set("q", nextValue);
+      } else {
+        nextParams.delete("q");
+      }
+      const hadQueryBefore = Boolean(searchParams.get("q"));
+      submit(nextParams, {
+        method: "get",
+        action: recipesPath,
+        replace: hadQueryBefore,
+      });
+    };
+
+    if (immediate) {
+      run();
+    } else {
+      debounceTimerRef.current = setTimeout(run, SEARCH_DEBOUNCE_MS);
+    }
+  };
+
+  const isSearching =
+    navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath &&
+    new URLSearchParams(navigation.location.search).get("q") !== urlQuery;
+
+  const minRatingParam = searchParams.get("minRating");
+  const tagsParam = searchParams.get("tags");
+  const sortParam = searchParams.get("sort");
+
+  return (
+    <Form
+      method="get"
+      action={recipesPath}
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submitSearch(value, true);
+      }}
+      className="relative mb-3"
+    >
+      {minRatingParam && (
+        <input type="hidden" name="minRating" value={minRatingParam} />
+      )}
+      {tagsParam && <input type="hidden" name="tags" value={tagsParam} />}
+      {sortParam && <input type="hidden" name="sort" value={sortParam} />}
+
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        id="recipe-search"
+        name="q"
+        type="search"
+        aria-label="Search recipes"
+        placeholder="Search recipes by title, ingredient, or tag..."
+        value={value}
+        onChange={(e) => {
+          const next = e.target.value;
+          setValue(next);
+          submitSearch(next);
+        }}
+        className={cn(
+          "h-11 rounded-xl bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden",
+          ssr && "ssr"
+        )}
+      />
+      {isSearching ? (
+        <Spinner className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      ) : (
+        value && (
+          <button
+            type="button"
+            onClick={() => {
+              setValue("");
+              submitSearch("", true);
+            }}
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )
+      )}
+    </Form>
+  );
+};
+
 const FilterPanel: FC<{
   isOpen: boolean;
   onToggle: () => void;
@@ -165,9 +303,14 @@ const FilterPanel: FC<{
     setSelectedTags([]);
   };
 
-  const hasFilters = Array.from(searchParams.entries()).some(
-    ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
-  );
+  const hasPanelFilters =
+    initialMinRating > 0 ||
+    initialSelectedTags.length > 0 ||
+    Boolean(sortBy && sortBy !== "none");
+
+  const resetHref = queryText
+    ? `${recipesPath}?q=${encodeURIComponent(queryText)}`
+    : recipesPath;
 
   return (
     <div
@@ -182,9 +325,9 @@ const FilterPanel: FC<{
         className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <span className="font-medium">Filter Recipes</span>
-          {hasFilters && (
+          <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+          <span className="font-medium">Filters & Sort</span>
+          {hasPanelFilters && (
             <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
               Active
             </span>
@@ -204,6 +347,7 @@ const FilterPanel: FC<{
           className="p-4 border-t"
           ref={formRef}
         >
+          {queryText && <input type="hidden" name="q" value={queryText} />}
           {minRating > 0 && (
             <input type="hidden" name="minRating" value={String(minRating)} />
           )}
@@ -216,16 +360,6 @@ const FilterPanel: FC<{
           )}
 
           <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="recipe-search">Search Recipes</FieldLabel>
-              <Input
-                id="recipe-search"
-                placeholder="e.g. Pasta, Salad, Garlic..."
-                defaultValue={queryText}
-                name="q"
-              />
-            </Field>
-
             <Field>
               <FieldLabel>Minimum Rating</FieldLabel>
               <div className="flex items-center gap-1">
@@ -330,9 +464,9 @@ const FilterPanel: FC<{
             </Field>
 
             <div className="flex gap-3 pt-2">
-              {hasFilters ? (
+              {hasPanelFilters ? (
                 <Button asChild variant="outline" className="flex-1">
-                  <Link to={recipesPath}>Reset</Link>
+                  <Link to={resetHref}>Reset</Link>
                 </Button>
               ) : (
                 <Button
@@ -359,101 +493,107 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const { recipes, topTags, ssr } = loaderData;
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
-  const filterKey = searchParams.toString();
 
-  if (!recipes || recipes.length === 0) {
-    const hasFilters = Array.from(searchParams.entries()).some(
-      ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
-    );
-    if (hasFilters) {
-      return (
-        <div className="p-4">
-          <FilterPanel
-            key={filterKey}
-            isOpen={filterOpen}
-            onToggle={() => setFilterOpen(!filterOpen)}
-            availableTags={topTags}
-            ssr={ssr}
-          />
-          <div className={cn("text-center py-12 rounded-xl", ssr && "ssr")}>
-            <p className="text-muted-foreground">
-              No recipes match your filters.
-            </p>
-            <Button asChild variant="link" className="mt-2">
-              <Link to={href("/recipes")}>Clear all filters</Link>
-            </Button>
-          </div>
-        </div>
-      );
-    }
+  const hasFilters = Array.from(searchParams.entries()).some(
+    ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
+  );
+
+  if ((!recipes || recipes.length === 0) && !hasFilters) {
     return <ZeroState ssr={ssr} />;
   }
 
+  const panelFilterKey = [
+    searchParams.get("minRating") || "",
+    searchParams.get("tags") || "",
+    searchParams.get("sort") || "",
+  ].join("|");
+
   return (
     <div>
+      <SearchBar ssr={ssr} />
       <FilterPanel
-        key={filterKey}
+        key={panelFilterKey}
         isOpen={filterOpen}
         onToggle={() => setFilterOpen(!filterOpen)}
         availableTags={topTags}
         ssr={ssr}
       />
-      <h3 className="mb-4 text-sm font-medium text-muted-foreground">
-        {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
-      </h3>
-      <ItemGroup className="gap-4">
-        {recipes.map((recipe: Recipe) => (
-          <Item
-            key={recipe.id}
-            variant="outline"
-            className={cn(ssr && "ssr")}
-          >
-            {isSafeImageUrl(recipe.imageUri) && (
-              <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
-                <img
-                  src={recipe.imageUri}
-                  alt={recipe.title}
-                  className="max-h-20 max-w-20 object-contain"
-                />
-              </ItemMedia>
-            )}
-            <ItemContent>
-              <ItemTitle>{recipe.title}</ItemTitle>
-              <div className="flex items-center gap-2 mb-2">
-                <div
-                  className="flex"
-                  aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}
-                >
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= (recipe.averageRating || 0)
-                          ? "fill-amber-400 text-amber-400"
-                          : "text-muted-foreground/30"
-                      }`}
+      {!recipes || recipes.length === 0 ? (
+        <div
+          className={cn(
+            "text-center py-12 rounded-xl border bg-card",
+            ssr && "ssr"
+          )}
+        >
+          <p className="text-muted-foreground">
+            No recipes match your search or filters.
+          </p>
+          <Button asChild variant="link" className="mt-2">
+            <Link to={href("/recipes")}>Clear search & filters</Link>
+          </Button>
+        </div>
+      ) : (
+        <>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">
+            {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
+          </h3>
+          <ItemGroup className="gap-4">
+            {recipes.map((recipe: Recipe) => (
+              <Item
+                key={recipe.id}
+                variant="outline"
+                className={cn(ssr && "ssr")}
+              >
+                {isSafeImageUrl(recipe.imageUri) && (
+                  <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
+                    <img
+                      src={recipe.imageUri}
+                      alt={recipe.title}
+                      className="max-h-20 max-w-20 object-contain"
                     />
-                  ))}
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span>•</span>
-                  <span>{recipe.likes || 0} likes</span>
-                </div>
-              </div>
-              <ItemDescription>
-                {recipe.tags?.join(", ") || "No tags"}
-              </ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={href("/recipes/:recipeId", { recipeId: recipe.id })}>
-                  Open
-                </Link>
-              </Button>
-            </ItemActions>
-          </Item>
-        ))}
-      </ItemGroup>
+                  </ItemMedia>
+                )}
+                <ItemContent>
+                  <ItemTitle>{recipe.title}</ItemTitle>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div
+                      className="flex"
+                      aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}
+                    >
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= (recipe.averageRating || 0)
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-muted-foreground/30"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span>•</span>
+                      <span>{recipe.likes || 0} likes</span>
+                    </div>
+                  </div>
+                  <ItemDescription>
+                    {recipe.tags?.join(", ") || "No tags"}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link
+                      to={href("/recipes/:recipeId", { recipeId: recipe.id })}
+                    >
+                      Open
+                    </Link>
+                  </Button>
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        </>
+      )}
     </div>
   );
 }

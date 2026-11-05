@@ -1,4 +1,5 @@
 import {
+  href,
   isRouteErrorResponse,
   Link,
   Links,
@@ -68,7 +69,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <p className="text-lg text-muted-foreground">{details}</p>
       <div>
         <Button asChild variant="outline">
-          <Link to="/">Back to Home</Link>
+          <Link to={href("/recipes")}>Browse Recipes</Link>
         </Button>
       </div>
       {stack && (

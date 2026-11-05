@@ -8,17 +8,26 @@ import { Spinner } from "@/components/ui/spinner";
 interface IngredientInputProps {
   handleSubmit: (ingredients: string, cuisineType: string) => Promise<void>;
   isLoading: boolean | string;
+  submitDisabled?: boolean;
 }
 
-export const IngredientInput: FC<IngredientInputProps> = ({ handleSubmit, isLoading }) => {
+export const IngredientInput: FC<IngredientInputProps> = ({
+  handleSubmit,
+  isLoading,
+  submitDisabled = false,
+}) => {
   const [ingredients, setIngredients] = useState("");
   const [cuisineType, setCuisineType] = useState("");
 
   return (
-    <form onSubmit={(e) => {
-      e.preventDefault();
-      handleSubmit(ingredients, cuisineType)
-    }} className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (isLoading || submitDisabled) return;
+        handleSubmit(ingredients, cuisineType);
+      }}
+      className="space-y-4"
+    >
       <Field>
         <FieldLabel>Ingredients</FieldLabel>
         <Textarea
@@ -44,8 +53,9 @@ export const IngredientInput: FC<IngredientInputProps> = ({ handleSubmit, isLoad
       </Field>
       <Button
         className="w-full"
-        disabled={!!isLoading}
-        type="submit">
+        disabled={!!isLoading || submitDisabled}
+        type="submit"
+      >
         {isLoading && <Spinner className="mr-2 h-4 w-4" />}
         {isLoading ? (typeof isLoading === 'string' ? isLoading : 'Loading...') : 'Generate'}
       </Button>
