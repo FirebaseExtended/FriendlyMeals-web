@@ -140,6 +140,26 @@
   }
 }
 
+/* Shared-element view transition for recipe titles between list and detail */
+::view-transition-group(.vt-recipe-title) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(.vt-recipe-title),
+::view-transition-new(.vt-recipe-title) {
+  width: 100%;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.vt-recipe-title),
+  ::view-transition-old(.vt-recipe-title),
+  ::view-transition-new(.vt-recipe-title) {
+    animation: none;
+  }
+}
+
 /* Visual indicator for server-rendered (SSR) components */
 .ssr {
   outline: 2px solid var(--color-blue-500, #3b82f6);

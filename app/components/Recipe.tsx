@@ -1,4 +1,4 @@
-import { type FC } from "react";
+import { ViewTransition, type FC } from "react";
 import { href, Link, useFetcher, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/firebase/data";
 import { useAuthUser } from "@/firebase/auth";
-import { cn } from "@/lib/utils";
+import { cn, getRecipeTitleTransitionName } from "@/lib/utils";
 
 function isSafeImageUrl(url: string | undefined): url is string {
   return Boolean(
@@ -104,6 +104,12 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
   const isAuthor = Boolean(!readonly && user && user.uid === recipe.authorId);
 
+  const titleHeading = (
+    <h1 className="w-fit text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+      {recipe.title}
+    </h1>
+  );
+
   return (
     <div className="max-w-2xl mx-auto w-full space-y-3">
       {!readonly && (
@@ -139,9 +145,17 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
         <div className="p-6 sm:p-8 space-y-6">
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-4">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                {recipe.title}
-              </h1>
+              {!readonly && recipe.id ? (
+                <ViewTransition
+                  name={getRecipeTitleTransitionName(recipe.id)}
+                  default="none"
+                  share="vt-recipe-title"
+                >
+                  {titleHeading}
+                </ViewTransition>
+              ) : (
+                titleHeading
+              )}
               {!readonly && (
                 <Button
                   type="button"

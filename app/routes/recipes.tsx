@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type FC } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  ViewTransition,
+  type FC,
+} from "react";
 import {
   data,
   Form,
@@ -45,7 +51,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import { cn } from "@/lib/utils";
+import { cn, getRecipeTitleTransitionName } from "@/lib/utils";
 
 const PUBLIC_RECIPES_CACHE_CONTROL =
   "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
@@ -587,9 +593,15 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       </ItemMedia>
                     )}
                     <ItemContent className="gap-1.5">
-                      <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-emerald-700 dark:group-hover/item:text-emerald-400 transition-colors">
-                        {recipe.title}
-                      </ItemTitle>
+                      <ViewTransition
+                        name={getRecipeTitleTransitionName(recipe.id)}
+                        default="none"
+                        share="vt-recipe-title"
+                      >
+                        <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-emerald-700 dark:group-hover/item:text-emerald-400 transition-colors">
+                          {recipe.title}
+                        </ItemTitle>
+                      </ViewTransition>
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
                         {recipe.averageRating > 0 ? (
                           <span className="inline-flex items-center gap-1 font-medium text-foreground">
