@@ -1,20 +1,45 @@
 import { getGenerativeModel, Schema } from "firebase/ai";
 import { getFirebaseAI } from "./firebase";
 import { getRecipeGenerationSettings } from "./remoteConfig";
-import type { NewRecipeInput } from "./data";
+import type { InstructionStep, NewRecipeInput } from "./data";
 
 const recipeSchema = Schema.object({
   properties: {
-    title: Schema.string(),
-    ingredients: Schema.array({ items: Schema.string() }),
-    instructions: Schema.string({
-      description:
-        "Markdown-formatted recipe instructions. Avoid escaping whitespace characters.",
+    title: Schema.string({
+      description: "Appetizing recipe title",
     }),
-    tags: Schema.array({ items: Schema.string() }),
-    prepTime: Schema.string(),
-    cookTime: Schema.string(),
-    servings: Schema.string(),
+    ingredients: Schema.array({
+      description:
+        "Ingredients with quantities, e.g. '2 ripe bananas, sliced'",
+      items: Schema.string(),
+    }),
+    instructions: Schema.array({
+      description: "Ordered cooking steps from prep to serving",
+      items: Schema.object({
+        properties: {
+          title: Schema.string({
+            description:
+              "Short action heading without step numbers, e.g. 'Make the Spiced Syrup'",
+          }),
+          content: Schema.string({
+            description: "Clear paragraph explaining how to perform this step",
+          }),
+        },
+      }),
+    }),
+    tags: Schema.array({
+      description: "2 to 5 concise category or dietary tags",
+      items: Schema.string(),
+    }),
+    prepTime: Schema.string({
+      description: "Short duration, e.g. '10 mins'",
+    }),
+    cookTime: Schema.string({
+      description: "Short duration, e.g. '25 mins'",
+    }),
+    servings: Schema.string({
+      description: "Number of servings only, e.g. '4'",
+    }),
   },
 });
 
@@ -46,10 +71,24 @@ export async function generateStructuredJsonRecipe(
   const result = await model.generateContent(prompt);
   const parsed = JSON.parse(result.response.text()) as Partial<NewRecipeInput>;
 
+  const instructions: InstructionStep[] = Array.isArray(parsed.instructions)
+    ? parsed.instructions
+        .filter(
+          (step): step is InstructionStep =>
+            Boolean(step) &&
+            typeof step.title === "string" &&
+            typeof step.content === "string"
+        )
+        .map((step) => ({
+          title: step.title.trim(),
+          content: step.content.trim(),
+        }))
+    : [];
+
   return {
     title: parsed.title || "Chef's Special",
     ingredients: Array.isArray(parsed.ingredients) ? parsed.ingredients : [],
-    instructions: parsed.instructions || "",
+    instructions,
     tags: Array.isArray(parsed.tags) ? parsed.tags : [],
     prepTime: parsed.prepTime || "15 mins",
     cookTime: parsed.cookTime || "20 mins",

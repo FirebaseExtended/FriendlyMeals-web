@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SignInAuthForm } from "@/components/sign-in-auth-form";
 
@@ -19,6 +20,7 @@ export type { SignInAuthScreenProps };
 export function SignInAuthScreen({
   children,
   onSignIn,
+  onSignUpClick,
   ...props
 }: SignInAuthScreenProps) {
   const ui = useUI();
@@ -36,11 +38,28 @@ export function SignInAuthScreen({
           <CardDescription>{subtitleText}</CardDescription>
         </CardHeader>
         <CardContent>
-          <SignInAuthForm {...props} />
+          <SignInAuthForm
+            {...props}
+            onSignUpClick={children ? undefined : onSignUpClick}
+          />
           {children ? (
             <>
               <Separator className="my-4" />
               <div className="space-y-2">{children}</div>
+              {onSignUpClick ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={onSignUpClick}
+                  className="mt-2 w-full"
+                >
+                  <span className="text-xs">
+                    {getTranslation(ui, "prompts", "noAccount")}{" "}
+                    {getTranslation(ui, "labels", "signUp")}
+                  </span>
+                </Button>
+              ) : null}
             </>
           ) : null}
         </CardContent>

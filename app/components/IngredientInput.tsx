@@ -29,36 +29,49 @@ export const IngredientInput: FC<IngredientInputProps> = ({
       className="space-y-4"
     >
       <Field>
-        <FieldLabel>Ingredients</FieldLabel>
+        <FieldLabel htmlFor="ingredients-input">Ingredients on hand</FieldLabel>
         <Textarea
+          id="ingredients-input"
           disabled={!!isLoading}
-          placeholder="Enter your list of ingredients"
+          placeholder="e.g., ripe bananas, day-old muffins, blueberries, cinnamon..."
+          value={ingredients}
           onChange={(e) => setIngredients(e.target.value)}
-          rows={5}
+          rows={3}
+          className="resize-y bg-background"
         />
       </Field>
-      <Field>
-        <FieldLabel>Cuisine</FieldLabel>
-        <Select
-          disabled={!!isLoading}
-          value={cuisineType}
-          onChange={(e) => setCuisineType(e.target.value)}
+
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-1">
+        <Field className="sm:w-56">
+          <FieldLabel htmlFor="cuisine-select">Cuisine style</FieldLabel>
+          <Select
+            id="cuisine-select"
+            disabled={!!isLoading}
+            value={cuisineType}
+            onChange={(e) => setCuisineType(e.target.value)}
+            className="bg-background"
+          >
+            <option value="">Any cuisine</option>
+            <option value="Italian">Italian</option>
+            <option value="Mexican">Mexican</option>
+            <option value="Asian">Asian</option>
+            <option value="American">American</option>
+          </Select>
+        </Field>
+
+        <Button
+          className="sm:w-auto px-6"
+          disabled={!!isLoading || submitDisabled}
+          type="submit"
         >
-          <option value="">Cuisine type</option>
-          <option value="Italian">Italian</option>
-          <option value="Mexican">Mexican</option>
-          <option value="Asian">Asian</option>
-          <option value="American">American</option>
-        </Select>
-      </Field>
-      <Button
-        className="w-full"
-        disabled={!!isLoading || submitDisabled}
-        type="submit"
-      >
-        {isLoading && <Spinner className="mr-2 h-4 w-4" />}
-        {isLoading ? (typeof isLoading === 'string' ? isLoading : 'Loading...') : 'Generate'}
-      </Button>
+          {isLoading && <Spinner className="mr-2 h-4 w-4" />}
+          {isLoading
+            ? typeof isLoading === "string"
+              ? `${isLoading}...`
+              : "Generating..."
+            : "Generate Recipe"}
+        </Button>
+      </div>
     </form>
   );
-}
+};

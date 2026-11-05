@@ -9,7 +9,7 @@ import { firebaseApp } from "./firebase";
 export const DEFAULT_RECIPE_MODEL = "gemini-3.8-flash";
 
 export const DEFAULT_RECIPE_SYSTEM_PROMPT =
-  "You are a friendly chef creating approachable home-cooked recipes. Write clear step-by-step Markdown instructions, practical prep and cook times, and 2 to 5 concise tags.";
+  "You are a friendly chef creating approachable home-cooked recipes. Write clear step-by-step instructions with concise step titles, practical prep and cook times, and 2 to 5 concise tags.";
 
 export interface RecipeGenerationSettings {
   model: string;

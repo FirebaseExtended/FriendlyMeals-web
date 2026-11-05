@@ -11,6 +11,7 @@ import {
 import {
   BookOpen,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Search,
   SlidersHorizontal,
@@ -40,7 +41,6 @@ import {
   Item,
   ItemActions,
   ItemContent,
-  ItemDescription,
   ItemGroup,
   ItemMedia,
   ItemTitle,
@@ -117,7 +117,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
   return (
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
-      <Empty className={cn(ssr && "ssr")}>
+      <Empty className={cn("border border-dashed bg-card", ssr && "ssr")}>
         <EmptyMedia variant="icon">
           <BookOpen className="h-6 w-6" />
         </EmptyMedia>
@@ -317,7 +317,7 @@ const FilterPanel: FC<{
       <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
       <span className="font-medium">Filters & Sort</span>
       {hasPanelFilters && (
-        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+        <span className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full">
           Active
         </span>
       )}
@@ -369,7 +369,7 @@ const FilterPanel: FC<{
           />
         )}
 
-        <FieldGroup>
+        <FieldGroup className="gap-5">
           <Field>
             <FieldLabel>Minimum Rating</FieldLabel>
             <div className="flex items-center gap-1">
@@ -473,29 +473,35 @@ const FilterPanel: FC<{
             </div>
           </Field>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex items-center gap-2 pt-3 border-t border-border/60">
             {hasPanelFilters ? (
-              <Button asChild variant="outline" size="sm" className="flex-1">
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+              >
                 <Link to={resetHref}>Reset</Link>
               </Button>
             ) : (
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleLocalReset}
-                className="flex-1"
+                className="text-muted-foreground"
               >
                 Reset
               </Button>
             )}
             <Button
               type="submit"
+              variant="secondary"
               size="sm"
               disabled={isFiltering}
-              className="flex-1"
+              className="ml-auto px-4 font-semibold"
             >
-              {isFiltering ? "Filtering..." : "Apply"}
+              {isFiltering ? "Filtering..." : "Apply Filters"}
             </Button>
           </div>
         </FieldGroup>
@@ -559,58 +565,75 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             <h3 className="mb-3 text-sm font-medium text-muted-foreground">
               {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
             </h3>
-            <ItemGroup className="gap-4">
+            <ItemGroup className="gap-3">
               {recipes.map((recipe: Recipe) => (
                 <Item
                   key={recipe.id}
+                  asChild
                   variant="outline"
-                  className={cn(ssr && "ssr")}
-                >
-                  {isSafeImageUrl(recipe.imageUri) && (
-                    <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
-                      <img
-                        src={recipe.imageUri}
-                        alt={recipe.title}
-                        className="max-h-20 max-w-20 object-contain"
-                      />
-                    </ItemMedia>
+                  className={cn(
+                    "rounded-xl bg-card p-5 hover:border-emerald-500/40 hover:shadow-xs transition-all",
+                    ssr && "ssr"
                   )}
-                  <ItemContent>
-                    <ItemTitle>{recipe.title}</ItemTitle>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div
-                        className="flex"
-                        aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}
-                      >
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= (recipe.averageRating || 0)
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-muted-foreground/30"
-                            }`}
-                          />
-                        ))}
+                >
+                  <Link to={href("/recipes/:recipeId", { recipeId: recipe.id })}>
+                    {isSafeImageUrl(recipe.imageUri) && (
+                      <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
+                        <img
+                          src={recipe.imageUri}
+                          alt={recipe.title}
+                          className="size-full object-cover"
+                        />
+                      </ItemMedia>
+                    )}
+                    <ItemContent className="gap-1.5">
+                      <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-emerald-700 dark:group-hover/item:text-emerald-400 transition-colors">
+                        {recipe.title}
+                      </ItemTitle>
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                        {recipe.averageRating > 0 ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                            {recipe.averageRating.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span>New</span>
+                        )}
+                        {recipe.likes > 0 && (
+                          <span>
+                            • {recipe.likes}{" "}
+                            {recipe.likes === 1 ? "like" : "likes"}
+                          </span>
+                        )}
+                        {(recipe.prepTime || recipe.cookTime) && (
+                          <span>
+                            •{" "}
+                            {[
+                              recipe.prepTime && `Prep ${recipe.prepTime}`,
+                              recipe.cookTime && `Cook ${recipe.cookTime}`,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <span>•</span>
-                        <span>{recipe.likes || 0} likes</span>
-                      </div>
-                    </div>
-                    <ItemDescription>
-                      {recipe.tags?.join(", ") || "No tags"}
-                    </ItemDescription>
-                  </ItemContent>
-                  <ItemActions>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link
-                        to={href("/recipes/:recipeId", { recipeId: recipe.id })}
-                      >
-                        Open
-                      </Link>
-                    </Button>
-                  </ItemActions>
+                      {recipe.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {recipe.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </ItemContent>
+                    <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
+                      <ChevronRight className="w-5 h-5" />
+                    </ItemActions>
+                  </Link>
                 </Item>
               ))}
             </ItemGroup>

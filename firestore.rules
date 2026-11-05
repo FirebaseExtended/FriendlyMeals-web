@@ -10,7 +10,7 @@ rules_version = '2';
 //              Cloud CDN caching; contains no PII, only authorId UID)
 // Fields:
 //   - title: string (required, 1..200 chars)
-//   - instructions: string (required, 1..25000 chars)
+//   - instructions: list<{ title: string, content: string }> (required, 1..50 steps)
 //   - ingredients: list<string> (required, max 100 items)
 //   - tags: list<string> (required, max 20 items)
 //   - prepTime: string (required, 1..100 chars)
@@ -81,6 +81,25 @@ service cloud.firestore {
                 && request.resource.data[field][0].size() <= 200));
     }
 
+    function isValidInstructionStep(step) {
+      return step is map
+        && step.keys().hasAll(['title', 'content'])
+        && step.keys().hasOnly(['title', 'content'])
+        && step.title is string
+        && step.title.size() >= 1
+        && step.title.size() <= 200
+        && step.content is string
+        && step.content.size() >= 1
+        && step.content.size() <= 5000;
+    }
+
+    function isValidInstructionsList(field, maxLen) {
+      return request.resource.data[field] is list
+        && request.resource.data[field].size() >= 1
+        && request.resource.data[field].size() <= maxLen
+        && isValidInstructionStep(request.resource.data[field][0]);
+    }
+
     // ===============================================================
     // Domain Validators
     // ===============================================================
@@ -107,7 +126,7 @@ service cloud.firestore {
           'imageUri'
         ])
         && validStringLength('title', 1, 200)
-        && validStringLength('instructions', 1, 25000)
+        && isValidInstructionsList('instructions', 50)
         && validStringLength('prepTime', 1, 100)
         && validStringLength('cookTime', 1, 100)
         && validStringLength('servings', 1, 100)

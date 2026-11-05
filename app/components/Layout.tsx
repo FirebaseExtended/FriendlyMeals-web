@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 const MenuLink: FC<{ to: string; label: string }> = ({ to, label }) => {
   const active = useMatch({ path: to, end: false });
   const classes =
-    "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50";
+    "group inline-flex h-9 w-max items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:bg-accent focus:text-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-emerald-50 data-[active]:text-emerald-700 data-[active]:font-semibold dark:data-[active]:bg-emerald-950/60 dark:data-[active]:text-emerald-300";
 
   return (
     <NavigationMenuLink asChild active={active !== null} className={classes}>
@@ -44,60 +44,50 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header
-        className={cn(
-          "flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-b",
-          isSsr && "ssr"
-        )}
-      >
-        <Link
-          to={href("/recipes")}
-          className="flex items-center gap-2 text-xl font-bold hover:opacity-90 transition-opacity"
-        >
-          <Flame className="w-5 h-5 text-emerald-600" />
-          <span>Friendly Meals</span>
-        </Link>
+      <header className={cn("border-b bg-background", isSsr && "ssr")}>
+        <div className="container max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <Link
+            to={href("/recipes")}
+            className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-90 transition-opacity"
+          >
+            <Flame className="w-5 h-5 text-emerald-600" />
+            <span>Friendly Meals</span>
+          </Link>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <NavigationMenu>
-            <NavigationMenuList className="flex flex-wrap">
-              <NavigationMenuItem>
-                <MenuLink to={href("/recipes")} label="Recipes" />
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <MenuLink to={href("/generate")} label="Generate" />
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
+          <div className="flex flex-wrap items-center gap-2">
+            <NavigationMenu>
+              <NavigationMenuList className="flex flex-wrap gap-1">
+                <NavigationMenuItem>
+                  <MenuLink to={href("/recipes")} label="Recipes" />
+                </NavigationMenuItem>
+                <NavigationMenuItem>
+                  <MenuLink to={href("/generate")} label="Generate" />
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
 
-          {!authReady ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled
-              aria-hidden="true"
-              className="w-28"
-            />
-          ) : user ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              className="w-28 gap-1.5"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </Button>
-          ) : (
-            <Button asChild variant="outline" size="sm" className="w-28">
-              <Link to={href("/login")}>Sign In</Link>
-            </Button>
-          )}
+            {!authReady ? (
+              <div aria-hidden="true" className="h-8 w-28" />
+            ) : user ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="w-28 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="sm" className="w-28">
+                <Link to={href("/login")}>Sign In</Link>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
-      <main className="container mx-auto p-2 sm:p-4">{children}</main>
+      <main className="container max-w-6xl mx-auto px-4 py-6">{children}</main>
     </div>
   );
 };

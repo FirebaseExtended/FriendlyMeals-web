@@ -10,7 +10,7 @@
     },
     "recipe_system_prompt": {
       "defaultValue": {
-        "value": "You are a friendly chef creating approachable home-cooked recipes. Write clear step-by-step Markdown instructions, practical prep and cook times, and 2 to 5 concise tags."
+        "value": "You are a friendly chef creating approachable home-cooked recipes. Write clear step-by-step instructions with concise step titles, practical prep and cook times, and 2 to 5 concise tags."
       },
       "description": "System instruction for Gemini recipe generation",
       "valueType": "STRING"

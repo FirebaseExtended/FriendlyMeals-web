@@ -14,6 +14,7 @@ import {
   execute,
   exists,
   field,
+  join,
   or,
   stringContains,
   subcollection,
@@ -36,10 +37,15 @@ export interface Like {
   id?: string;
 }
 
+export interface InstructionStep {
+  title: string;
+  content: string;
+}
+
 export interface Recipe {
   id: string;
   title: string;
-  instructions: string;
+  instructions: InstructionStep[];
   ingredients: string[];
   authorId: string;
   tags: string[];
@@ -75,7 +81,7 @@ export async function getTop5Tags(): Promise<string[]> {
       accumulators: [countAll().as("tagCount")],
       groups: ["tagName"],
     })
-    .sort(field("tagCount").descending())
+    .sort(field("tagCount").descending(), field("tagName").ascending())
     .limit(5);
 
   const { results } = await execute(pipeline);
@@ -209,9 +215,10 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
       or(
         stringContains(toLower(field("title").coalesce("")), trimmedSearch),
         stringContains(
-          toLower(field("instructions").coalesce("")),
+          toLower(join("ingredients", " ").ifError("")),
           trimmedSearch
-        )
+        ),
+        stringContains(toLower(join("tags", " ").ifError("")), trimmedSearch)
       )
     );
   }
@@ -256,6 +263,15 @@ export function formatRecipeMarkdown(recipe: Recipe): string {
       ? recipe.ingredients.map((item) => `- ${item}`).join("\n")
       : "- None listed";
 
+  const instructionsBody = Array.isArray(recipe.instructions)
+    ? recipe.instructions
+        .map(
+          (step, idx) =>
+            `### ${idx + 1}. ${step.title}\n\n${step.content.trim()}`
+        )
+        .join("\n\n")
+    : String(recipe.instructions || "").trim();
+
   return `# ${recipe.title}
 
 - **Prep Time:** ${recipe.prepTime}
@@ -270,6 +286,6 @@ ${ingredientsList}
 
 ## Instructions
 
-${recipe.instructions.trim()}
+${instructionsBody}
 `;
 }

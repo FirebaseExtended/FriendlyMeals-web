@@ -87,6 +87,7 @@ export function SignInAuthForm(props: SignInAuthFormProps) {
                     variant="link"
                     onClick={props.onForgotPasswordClick}
                     size="sm"
+                    className="h-auto p-0"
                   >
                     <span className="text-xs">
                       {getTranslation(ui, "labels", "forgotPassword")}
