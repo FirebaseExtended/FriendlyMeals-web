@@ -5,7 +5,6 @@ import {
   type RemoteConfig,
 } from "firebase/remote-config";
 import { firebaseApp } from "./firebase";
-import { isFirebaseConfigured } from "./firebase-config";
 
 export const DEFAULT_RECIPE_MODEL = "gemini-3.8-flash";
 
@@ -26,7 +25,7 @@ let remoteConfigInstance: RemoteConfig | null = null;
  * published in the Firebase Console.
  */
 export async function getRecipeGenerationSettings(): Promise<RecipeGenerationSettings> {
-  if (typeof window === "undefined" || !isFirebaseConfigured) {
+  if (typeof window === "undefined") {
     return {
       model: DEFAULT_RECIPE_MODEL,
       systemInstruction: DEFAULT_RECIPE_SYSTEM_PROMPT,

@@ -25,8 +25,8 @@ Before editing Firebase or React Router code, consult the matching skill under `
    - Firebase Auth stores tokens in browser IndexedDB, so Node SSR loaders cannot read `auth.currentUser`.
    - Protected routes (`/generate`) sit behind `app/routes/_protected.tsx`, which guards access on the client via `clientMiddleware`, `clientLoader`, and `HydrateFallback`.
    - Mutations on `/recipes/:recipeId` (likes, ratings, deletes) run through `clientAction` + `useFetcher` so browser Auth tokens attach automatically and `clientLoader` revalidates Firestore aggregates.
-3. **Browser-Safe Services & App Hosting Build Env Bridging**:
-   - `vite.config.ts` bridges `process.env.FIREBASE_WEBAPP_CONFIG` and `process.env.FIRESTORE_DATABASE_ID` via `define` so SSR and browser bundles always agree on Firebase configuration in Firebase App Hosting.
+3. **Firebase Initialization & Browser-Safe Services**:
+   - `app/firebase/firebase-config.ts` uses `firebaseConfig` when pasted (`firebase apps:sdkconfig WEB`), and falls back to zero-argument `initializeApp()` for automatic initialization on Firebase App Hosting.
    - Guard browser-only SDKs (`initializeAppCheck`, `getRemoteConfig`, `getAuth`, `initializeUI`) behind `typeof window !== "undefined"` so importing `app/firebase/*` during Node SSR never accesses `window`, `self`, or IndexedDB.
    - Enforce App Check on Firebase AI Logic (browser-only), not on Firestore (which is queried by unauthenticated Node SSR `loader`s).
    - Keep sourcemap uploads (`npm run upload:sourcemaps`) out of `npm run build` so Cloud Build succeeds in Firebase App Hosting.

@@ -16,27 +16,19 @@ FriendlyMeals is an AI-powered recipe generator and community cookbook built wit
    npm install
    ```
 
-2. **Configure Firebase:**
+2. **Configure Firebase (`app/firebase/firebase-config.ts`):**
 
-   Paste your Firebase web app config into `app/firebase/firebase-config.ts` (`localFirebaseConfig`), or create a `.env.local` file:
+   Fetch your web app configuration and paste it into `firebaseConfig` in `app/firebase/firebase-config.ts`:
 
    ```bash
-   VITE_FIREBASE_API_KEY=...
-   VITE_FIREBASE_AUTH_DOMAIN=...
-   VITE_FIREBASE_PROJECT_ID=...
-   VITE_FIREBASE_STORAGE_BUCKET=...
-   VITE_FIREBASE_MESSAGING_SENDER_ID=...
-   VITE_FIREBASE_APP_ID=...
-   # Optional: override Firestore database ID (defaults to named Enterprise DB "default")
-   VITE_FIRESTORE_DATABASE_ID=default
-   # Optional (Production Hardening): reCAPTCHA Enterprise site key & localhost debug token
-   VITE_RECAPTCHA_SITE_KEY=...
-   VITE_APPCHECK_DEBUG_TOKEN=...
+   firebase apps:sdkconfig WEB
    ```
 
-   > **Note on Firestore Enterprise database IDs:** Firestore Enterprise requires a named database ID rather than `(default)`. This repo targets `"default"` (without parentheses) in `firebase.json` and `app/firebase/firebase-config.ts`. If you created a different named Enterprise database in the Firebase Console, set `VITE_FIRESTORE_DATABASE_ID` (and update `firebase.json`) to match.
+   *(When `firebaseConfig` is left empty, `initializeFirebaseApp()` falls back to zero-argument `initializeApp()` for automatic initialization on Firebase App Hosting.)*
 
 3. **Provision Firestore Enterprise, Indexes, and Security Rules:**
+
+   Firestore Enterprise requires a named database ID rather than `(default)`. This repo targets `"default"` (without parentheses) in `firebase.json` and `app/firebase/data.ts`:
 
    ```bash
    firebase firestore:databases:create default \
@@ -56,7 +48,7 @@ FriendlyMeals is an AI-powered recipe generator and community cookbook built wit
 
 ## Production Hardening Notes
 
-- **App Check enforcement:** Enforce App Check on **Firebase AI Logic** (Gemini requests run strictly in the browser where reCAPTCHA Enterprise tokens are minted). Leave App Check unenforced on **Firestore**, because Node SSR `loader`s on Cloud Run query public recipes with the Firebase Web SDK without a browser reCAPTCHA token.
+- **App Check:** Set `VITE_RECAPTCHA_SITE_KEY` (and optional `VITE_APPCHECK_DEBUG_TOKEN` in `.env.local` for localhost) to initialize App Check in the browser. Enforce App Check on **Firebase AI Logic** (browser-only), and leave it unenforced on **Firestore** because Cloud Run SSR `loader`s query public recipes using the Firebase Web SDK without a browser reCAPTCHA token.
 - **Remote Config parameters:** Create `recipe_system_prompt` and `recipe_model` in Firebase Remote Config to tune prompts or swap Gemini models without redeploying. Both fall back cleanly to local defaults when offline or unconfigured.
 
 ## Production Build, Deploy & Sourcemaps

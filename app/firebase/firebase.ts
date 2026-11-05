@@ -1,31 +1,12 @@
-import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
   type AppCheck,
 } from "firebase/app-check";
 import { getAI, GoogleAIBackend, type AI } from "firebase/ai";
-import {
-  assertFirebaseConfigured,
-  firebaseConfig,
-  isFirebaseConfigured,
-} from "./firebase-config";
+import { initializeFirebaseApp } from "./firebase-config";
 
-function createOrGetFirebaseApp(): FirebaseApp {
-  if (getApps().length > 0) {
-    return getApp();
-  }
-  if (isFirebaseConfigured) {
-    return initializeApp(firebaseConfig);
-  }
-  try {
-    return initializeApp();
-  } catch {
-    return initializeApp(firebaseConfig);
-  }
-}
-
-export const firebaseApp = createOrGetFirebaseApp();
+export const firebaseApp = initializeFirebaseApp();
 
 let appCheckInstance: AppCheck | null = null;
 
@@ -35,7 +16,7 @@ let appCheckInstance: AppCheck | null = null;
  * Node SSR loaders safe.
  */
 export function initializeBrowserAppCheck(): AppCheck | null {
-  if (typeof window === "undefined" || !isFirebaseConfigured) {
+  if (typeof window === "undefined") {
     return null;
   }
   if (appCheckInstance) {
@@ -70,7 +51,6 @@ if (typeof window !== "undefined") {
 let aiInstance: AI | null = null;
 
 export function getFirebaseAI(): AI {
-  assertFirebaseConfigured();
   if (!aiInstance) {
     const activeAppCheck = initializeBrowserAppCheck();
     aiInstance = getAI(firebaseApp, {

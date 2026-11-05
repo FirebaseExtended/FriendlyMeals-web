@@ -5,16 +5,8 @@ import type { Route } from "./+types/login";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { SignInAuthScreen } from "@/components/sign-in-auth-screen";
 import { SignUpAuthScreen } from "@/components/sign-up-auth-screen";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { getFirebaseUI, waitForAuthReady } from "@/firebase/auth";
-import { isFirebaseConfigured } from "@/firebase/firebase-config";
 
 export function meta() {
   return [
@@ -37,11 +29,9 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const url = new URL(request.url);
   const redirectTo = getSafeRedirectPath(url.searchParams.get("redirectTo"));
 
-  if (isFirebaseConfigured) {
-    const user = await waitForAuthReady();
-    if (user) {
-      throw redirect(redirectTo);
-    }
+  const user = await waitForAuthReady();
+  if (user) {
+    throw redirect(redirectTo);
   }
 
   return { redirectTo };
@@ -67,31 +57,6 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
   const handleAuthenticated = () => {
     navigate(redirectTo, { replace: true });
   };
-
-  if (!isFirebaseConfigured) {
-    return (
-      <div className="max-w-md mx-auto py-12 px-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Firebase Setup Required</CardTitle>
-            <CardDescription>
-              Configure your Firebase web app before signing in.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>
-              Paste your web app config into{" "}
-              <code className="font-mono text-foreground">
-                app/firebase/firebase-config.ts
-              </code>{" "}
-              or add <code className="font-mono text-foreground">VITE_FIREBASE_*</code>{" "}
-              variables to <code className="font-mono text-foreground">.env.local</code>.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const ui = getFirebaseUI();
 

@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import { signOutUser, useAuthUser } from "@/firebase/auth";
-import { isFirebaseConfigured } from "@/firebase/firebase-config";
 
 const MenuLink: FC<{ to: string; label: string }> = ({ to, label }) => {
   const active = useMatch({ path: to, end: false });
@@ -57,15 +56,6 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {!isFirebaseConfigured && (
-        <div className="bg-amber-50 dark:bg-amber-950/50 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-center text-xs text-amber-900 dark:text-amber-200">
-          Setup needed: add your Firebase config in{" "}
-          <code className="font-mono font-semibold">
-            app/firebase/firebase-config.ts
-          </code>{" "}
-          to connect Firestore, Auth, and Gemini.
-        </div>
-      )}
       <header className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-b">
         <Link
           to={href("/")}

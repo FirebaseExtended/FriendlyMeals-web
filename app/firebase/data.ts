@@ -22,11 +22,6 @@ import {
   variable,
 } from "firebase/firestore/pipelines";
 import { firebaseApp } from "./firebase";
-import {
-  assertFirebaseConfigured,
-  FIRESTORE_DATABASE_ID,
-  isFirebaseConfigured,
-} from "./firebase-config";
 
 export interface Review {
   recipeId: string;
@@ -69,7 +64,8 @@ export interface RecipeFilters {
   sort?: string;
 }
 
-export const db = getFirestore(firebaseApp, FIRESTORE_DATABASE_ID);
+// Firestore Enterprise requires a named database ID (here "default", matching firebase.json)
+export const db = getFirestore(firebaseApp, "default");
 
 function normalizeRecipe(id: string, data: DocumentData): Recipe {
   return {
@@ -97,10 +93,6 @@ function normalizeRecipe(id: string, data: DocumentData): Recipe {
 }
 
 export async function getTop5Tags(): Promise<string[]> {
-  if (!isFirebaseConfigured) {
-    return [];
-  }
-
   const pipeline = db
     .pipeline()
     .collection("recipes")
@@ -122,7 +114,6 @@ export async function publishRecipe(
   userId: string,
   recipe: NewRecipeInput
 ): Promise<string> {
-  assertFirebaseConfigured();
   const recipeRef = await addDoc(collection(db, "recipes"), {
     ...recipe,
     tags: recipe.tags ?? [],
@@ -132,10 +123,6 @@ export async function publishRecipe(
 }
 
 export async function getRecipe(recipeId: string): Promise<Recipe | null> {
-  if (!isFirebaseConfigured) {
-    return null;
-  }
-
   const pipeline = db
     .pipeline()
     .documents([`recipes/${recipeId}`])
@@ -168,7 +155,6 @@ export async function getRecipe(recipeId: string): Promise<Recipe | null> {
 }
 
 export async function deleteRecipe(recipeId: string): Promise<void> {
-  assertFirebaseConfigured();
   await deleteDoc(doc(db, "recipes", recipeId));
 }
 
@@ -178,7 +164,6 @@ export async function addReview(
   rating: number,
   text?: string
 ): Promise<void> {
-  assertFirebaseConfigured();
   // Deterministic doc ID (`userId`) ensures one updatable review per user per recipe
   await setDoc(doc(db, "recipes", recipeId, "reviews", userId), {
     recipeId,
@@ -192,7 +177,6 @@ export async function likeRecipe(
   userId: string,
   recipeId: string
 ): Promise<void> {
-  assertFirebaseConfigured();
   const likeId = `${recipeId}_${userId}`;
   await setDoc(doc(db, "likes", likeId), {
     userId,
@@ -204,7 +188,6 @@ export async function unlikeRecipe(
   userId: string,
   recipeId: string
 ): Promise<void> {
-  assertFirebaseConfigured();
   const likeId = `${recipeId}_${userId}`;
   await deleteDoc(doc(db, "likes", likeId));
 }
@@ -213,10 +196,6 @@ export async function isRecipeLikedByUser(
   userId: string,
   recipeId: string
 ): Promise<boolean> {
-  if (!isFirebaseConfigured) {
-    return false;
-  }
-
   const snap = await getDoc(doc(db, "likes", `${recipeId}_${userId}`));
   return snap.exists();
 }
@@ -227,10 +206,6 @@ export async function isRecipeLikedByUser(
  * Works identically in Node SSR loaders and browser clientLoaders.
  */
 export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
-  if (!isFirebaseConfigured) {
-    return [];
-  }
-
   let pipeline = db
     .pipeline()
     .collection("recipes")

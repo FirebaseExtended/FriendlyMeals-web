@@ -6,13 +6,12 @@ import {
   type Crashlytics,
 } from "firebase/crashlytics";
 import { firebaseApp } from "./firebase";
-import { firebaseConfig, isFirebaseConfigured } from "./firebase-config";
 
 let clientCrashlytics: Crashlytics | null = null;
 let serverCrashlytics: Crashlytics | null = null;
 
 function canUseCrashlytics(): boolean {
-  return isFirebaseConfigured && Boolean(firebaseConfig.appId);
+  return Boolean(firebaseApp.options.appId);
 }
 
 export function initBrowserCrashlytics(): Crashlytics | null {
