@@ -19,13 +19,14 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 2. **Create a Firebase project and register a web app**
 
    - Create or select a project in the [Firebase Console](https://console.firebase.google.com/) and [upgrade to the Blaze pay-as-you-go plan](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered) (required for Firestore Enterprise and App Hosting).
-   - Register a Web app in [Project settings](https://console.firebase.google.com/project/_/settings/general/) and paste the `firebaseConfig` object into `app/firebase/firebase-config.ts`. When `firebaseConfig` is empty, `initializeFirebaseApp()` falls back to zero-argument `initializeApp()` on Firebase App Hosting.
-   - Log in and select the project in the Firebase CLI for the steps below:
+   - Log in and select the project in the Firebase CLI:
 
      ```bash
      firebase login
      firebase use <YOUR_PROJECT_ID>
      ```
+
+   - Register a Web app in [Project settings](https://console.firebase.google.com/project/_/settings/general/) (or via CLI with `firebase apps:create WEB friendlymeals` and `firebase apps:sdkconfig WEB`) and paste the `firebaseConfig` object into `app/firebase/firebase-config.ts` for local development. Leave `firebaseConfig` uncommitted (`{}`) in git if you want Firebase App Hosting to use zero-argument `initializeApp()` automatic initialization in production.
 
 3. **Enable Authentication providers**
 
@@ -61,6 +62,8 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
    firebase deploy --only remoteconfig
    ```
 
+   *(If you are reusing a Firebase project that already has Remote Config parameters, run `firebase remoteconfig:get` first and merge existing keys into `remoteconfig.template.json` before deploying.)*
+
    You can update live values later in [Remote Config](https://console.firebase.google.com/project/_/config) without redeploying the app, or pull remote edits locally with `firebase remoteconfig:get -o remoteconfig.template.json`.
 
 7. **Start the dev server**
@@ -71,13 +74,20 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 
 ## Production hardening and deployment
 
-- **App Check**: Register your Web app with reCAPTCHA Enterprise (and manage localhost debug tokens) in [App Check > Apps](https://console.firebase.google.com/project/_/appcheck/apps), then set `VITE_RECAPTCHA_SITE_KEY` (and optional `VITE_APPCHECK_DEBUG_TOKEN` in `.env.local` for local dev). Enforce App Check on **Firebase AI Logic** in [App Check > APIs](https://console.firebase.google.com/project/_/appcheck/products). Leave **Cloud Firestore** unenforced so Cloud Run SSR `loader`s can read public recipes without a browser reCAPTCHA token.
-- **App Hosting**: Connect your GitHub repository and create the `friendly-meals` backend in [App Hosting](https://console.firebase.google.com/project/_/apphosting) to deploy the SSR server and static assets (`apphosting.yaml`).
-- **Crashlytics**: View client and SSR crash reports in [Crashlytics](https://console.firebase.google.com/project/_/crashlytics). After running `npm run build`, upload the hidden sourcemaps in `build` for deobfuscated stack traces:
+- **App Check**:
+  1. In [App Check > Apps](https://console.firebase.google.com/project/_/appcheck/apps), register your Web app with a **reCAPTCHA Enterprise** site key.
+  2. For local development, open the Web app's overflow menu in App Check > **Manage debug tokens**, create a debug token, and add `VITE_RECAPTCHA_SITE_KEY` and `VITE_APPCHECK_DEBUG_TOKEN` to `.env.local`. For production on App Hosting, add `VITE_RECAPTCHA_SITE_KEY` under `env` in `apphosting.yaml` (since `.env.local` is gitignored).
+  3. In [App Check > APIs](https://console.firebase.google.com/project/_/appcheck/products), enforce App Check on **Firebase AI Logic** (note: once enforced, `/generate` rejects Gemini calls until your Web app and debug token are configured). Leave **Cloud Firestore** unenforced so Cloud Run SSR `loader`s can read public recipes without a browser reCAPTCHA token.
+- **App Hosting**:
+  1. In [App Hosting](https://console.firebase.google.com/project/_/apphosting), connect your GitHub repository, create the `friendly-meals` backend (`apphosting.yaml`), and **associate your Firebase Web app** with the backend so App Hosting injects `FIREBASE_WEBAPP_CONFIG` for zero-argument `initializeApp()`. (To provision and deploy from local source via CLI instead, run `firebase apphosting:backends:create --non-interactive --backend friendly-meals --primary-region us-central1 --app <YOUR_FIREBASE_WEB_APP_ID> -s firebase-app-hosting-compute@<YOUR_PROJECT_ID>.iam.gserviceaccount.com --root-dir /` followed by `firebase deploy --only apphosting`.)
+  2. After the backend is created, add its `<BACKEND_ID>--<PROJECT_ID>.<REGION>.hosted.app` domain in [Authentication > Settings > Authorized domains](https://console.firebase.google.com/project/_/authentication/settings) so Google Sign-In works on the live URL.
+- **Crashlytics**:
+  1. Open [Crashlytics](https://console.firebase.google.com/project/_/crashlytics) and select your Web app to initialize crash reporting, and ensure the [Firebase Telemetry API](https://console.developers.google.com/apis/api/firebasetelemetry.googleapis.com/overview) and [Firebase Telemetry Admin API](https://console.developers.google.com/apis/api/firebasetelemetryadmin.googleapis.com/overview) are enabled on your project.
+  2. After running `npm run build`, upload the hidden sourcemaps in `build` for deobfuscated client and SSR stack traces:
 
-  ```bash
-  npm run upload:sourcemaps -- --app <YOUR_FIREBASE_WEB_APP_ID>
-  ```
+     ```bash
+     npm run upload:sourcemaps -- --app <YOUR_FIREBASE_WEB_APP_ID>
+     ```
 
 ## Scripts
 
