@@ -218,7 +218,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         e.preventDefault();
         submitSearch(value, true);
       }}
-      className="relative mb-3"
+      className="relative"
     >
       {minRatingParam && (
         <input type="hidden" name="minRating" value={minRatingParam} />
@@ -312,27 +312,33 @@ const FilterPanel: FC<{
     ? `${recipesPath}?q=${encodeURIComponent(queryText)}`
     : recipesPath;
 
+  const headerContent = (
+    <div className="flex items-center gap-2">
+      <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+      <span className="font-medium">Filters & Sort</span>
+      {hasPanelFilters && (
+        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+          Active
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <div
       className={cn(
-        "bg-card border rounded-xl mb-6 overflow-hidden",
+        "bg-card border rounded-xl overflow-hidden",
         ssr && "ssr"
       )}
     >
+      {/* Mobile collapsible trigger */}
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+        aria-expanded={isOpen}
+        className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden"
       >
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-          <span className="font-medium">Filters & Sort</span>
-          {hasPanelFilters && (
-            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-              Active
-            </span>
-          )}
-        </div>
+        {headerContent}
         {isOpen ? (
           <ChevronUp className="w-4 h-4" />
         ) : (
@@ -340,151 +346,160 @@ const FilterPanel: FC<{
         )}
       </button>
 
-      {isOpen && (
-        <Form
-          method="get"
-          action={recipesPath}
-          className="p-4 border-t"
-          ref={formRef}
-        >
-          {queryText && <input type="hidden" name="q" value={queryText} />}
-          {minRating > 0 && (
-            <input type="hidden" name="minRating" value={String(minRating)} />
-          )}
-          {selectedTags.length > 0 && (
-            <input
-              type="hidden"
-              name="tags"
-              value={selectedTags.join(",")}
-            />
-          )}
+      {/* Desktop static sidebar header */}
+      <div className="hidden md:flex items-center justify-between p-4">
+        {headerContent}
+      </div>
 
-          <FieldGroup>
+      <Form
+        method="get"
+        action={recipesPath}
+        className={cn("p-4 border-t", !isOpen && "hidden md:block")}
+        ref={formRef}
+      >
+        {queryText && <input type="hidden" name="q" value={queryText} />}
+        {minRating > 0 && (
+          <input type="hidden" name="minRating" value={String(minRating)} />
+        )}
+        {selectedTags.length > 0 && (
+          <input
+            type="hidden"
+            name="tags"
+            value={selectedTags.join(",")}
+          />
+        )}
+
+        <FieldGroup>
+          <Field>
+            <FieldLabel>Minimum Rating</FieldLabel>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  aria-label={`Minimum ${star} star${star === 1 ? "" : "s"}`}
+                  onClick={() =>
+                    setMinRating(star === minRating ? 0 : star)
+                  }
+                  className="p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Star
+                    className={`w-6 h-6 cursor-pointer transition-all ${
+                      star <= minRating
+                        ? "fill-amber-400 text-amber-400"
+                        : "text-muted-foreground/30 hover:text-amber-400"
+                    }`}
+                  />
+                </button>
+              ))}
+              {minRating > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMinRating(0)}
+                  className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                  aria-label="Clear minimum rating"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </Field>
+
+          {availableTags.length > 0 && (
             <Field>
-              <FieldLabel>Minimum Rating</FieldLabel>
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
+              <FieldLabel>Popular Tags</FieldLabel>
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map((tag) => (
                   <button
-                    key={star}
+                    key={tag}
                     type="button"
-                    aria-label={`Minimum ${star} star${star === 1 ? "" : "s"}`}
-                    onClick={() =>
-                      setMinRating(star === minRating ? 0 : star)
-                    }
-                    className="p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => handleTagToggle(tag)}
+                    className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                      selectedTags.includes(tag)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background border-border hover:border-primary/50"
+                    }`}
                   >
-                    <Star
-                      className={`w-7 h-7 cursor-pointer transition-all ${
-                        star <= minRating
-                          ? "fill-amber-400 text-amber-400"
-                          : "text-muted-foreground/30 hover:text-amber-400"
-                      }`}
-                    />
+                    {tag}
                   </button>
                 ))}
-                {minRating > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setMinRating(0)}
-                    className="ml-2 text-xs text-muted-foreground hover:text-foreground"
-                    aria-label="Clear minimum rating"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             </Field>
+          )}
 
-            {availableTags.length > 0 && (
-              <Field>
-                <FieldLabel>Popular Tags</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {availableTags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleTagToggle(tag)}
-                      className={`px-3 py-1.5 text-sm rounded-full border transition-all ${
-                        selectedTags.includes(tag)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background border-border hover:border-primary/50"
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            )}
-
-            <Field>
-              <FieldLabel>Sort By</FieldLabel>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="sort"
-                    value="none"
-                    defaultChecked={!sortBy || sortBy === "none"}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm">No sort</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="sort"
-                    value="rating"
-                    defaultChecked={sortBy === "rating"}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm">Rating</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="sort"
-                    value="title"
-                    defaultChecked={sortBy === "title"}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm">Alphabetical</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="sort"
-                    value="likes"
-                    defaultChecked={sortBy === "likes"}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm">Likes</span>
-                </label>
-              </div>
-            </Field>
-
-            <div className="flex gap-3 pt-2">
-              {hasPanelFilters ? (
-                <Button asChild variant="outline" className="flex-1">
-                  <Link to={resetHref}>Reset</Link>
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleLocalReset}
-                  className="flex-1"
-                >
-                  Reset
-                </Button>
-              )}
-              <Button type="submit" disabled={isFiltering} className="flex-1">
-                {isFiltering ? "Filtering..." : "Apply Filters"}
-              </Button>
+          <Field>
+            <FieldLabel>Sort By</FieldLabel>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  value="none"
+                  defaultChecked={!sortBy || sortBy === "none"}
+                  className="accent-primary"
+                />
+                <span className="text-sm">No sort</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  value="rating"
+                  defaultChecked={sortBy === "rating"}
+                  className="accent-primary"
+                />
+                <span className="text-sm">Rating</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  value="title"
+                  defaultChecked={sortBy === "title"}
+                  className="accent-primary"
+                />
+                <span className="text-sm">Alphabetical</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  value="likes"
+                  defaultChecked={sortBy === "likes"}
+                  className="accent-primary"
+                />
+                <span className="text-sm">Likes</span>
+              </label>
             </div>
-          </FieldGroup>
-        </Form>
-      )}
+          </Field>
+
+          <div className="flex gap-2 pt-2">
+            {hasPanelFilters ? (
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link to={resetHref}>Reset</Link>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleLocalReset}
+                className="flex-1"
+              >
+                Reset
+              </Button>
+            )}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isFiltering}
+              className="flex-1"
+            >
+              {isFiltering ? "Filtering..." : "Apply"}
+            </Button>
+          </div>
+        </FieldGroup>
+      </Form>
     </div>
   );
 };
@@ -509,91 +524,99 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   ].join("|");
 
   return (
-    <div>
-      <SearchBar ssr={ssr} />
-      <FilterPanel
-        key={panelFilterKey}
-        isOpen={filterOpen}
-        onToggle={() => setFilterOpen(!filterOpen)}
-        availableTags={topTags}
-        ssr={ssr}
-      />
-      {!recipes || recipes.length === 0 ? (
-        <div
-          className={cn(
-            "text-center py-12 rounded-xl border bg-card",
-            ssr && "ssr"
-          )}
-        >
-          <p className="text-muted-foreground">
-            No recipes match your search or filters.
-          </p>
-          <Button asChild variant="link" className="mt-2">
-            <Link to={href("/recipes")}>Clear search & filters</Link>
-          </Button>
-        </div>
-      ) : (
-        <>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">
-            {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
-          </h3>
-          <ItemGroup className="gap-4">
-            {recipes.map((recipe: Recipe) => (
-              <Item
-                key={recipe.id}
-                variant="outline"
-                className={cn(ssr && "ssr")}
-              >
-                {isSafeImageUrl(recipe.imageUri) && (
-                  <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
-                    <img
-                      src={recipe.imageUri}
-                      alt={recipe.title}
-                      className="max-h-20 max-w-20 object-contain"
-                    />
-                  </ItemMedia>
-                )}
-                <ItemContent>
-                  <ItemTitle>{recipe.title}</ItemTitle>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="flex"
-                      aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}
-                    >
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-4 h-4 ${
-                            star <= (recipe.averageRating || 0)
-                              ? "fill-amber-400 text-amber-400"
-                              : "text-muted-foreground/30"
-                          }`}
-                        />
-                      ))}
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-[270px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-6 md:gap-y-4">
+      <div className="md:col-start-2 md:row-start-1">
+        <SearchBar ssr={ssr} />
+      </div>
+
+      <aside className="md:col-start-1 md:row-start-1 md:row-span-2 md:sticky md:top-4 md:self-start">
+        <FilterPanel
+          key={panelFilterKey}
+          isOpen={filterOpen}
+          onToggle={() => setFilterOpen(!filterOpen)}
+          availableTags={topTags}
+          ssr={ssr}
+        />
+      </aside>
+
+      <section className="min-w-0 md:col-start-2 md:row-start-2">
+        {!recipes || recipes.length === 0 ? (
+          <div
+            className={cn(
+              "text-center py-12 rounded-xl border bg-card",
+              ssr && "ssr"
+            )}
+          >
+            <p className="text-muted-foreground">
+              No recipes match your search or filters.
+            </p>
+            <Button asChild variant="link" className="mt-2">
+              <Link to={href("/recipes")}>Clear search & filters</Link>
+            </Button>
+          </div>
+        ) : (
+          <>
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+              {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
+            </h3>
+            <ItemGroup className="gap-4">
+              {recipes.map((recipe: Recipe) => (
+                <Item
+                  key={recipe.id}
+                  variant="outline"
+                  className={cn(ssr && "ssr")}
+                >
+                  {isSafeImageUrl(recipe.imageUri) && (
+                    <ItemMedia className="p-0 overflow-hidden rounded-md border bg-muted/5 flex items-center justify-center shrink-0">
+                      <img
+                        src={recipe.imageUri}
+                        alt={recipe.title}
+                        className="max-h-20 max-w-20 object-contain"
+                      />
+                    </ItemMedia>
+                  )}
+                  <ItemContent>
+                    <ItemTitle>{recipe.title}</ItemTitle>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div
+                        className="flex"
+                        aria-label={`Rating: ${recipe.averageRating || 0} out of 5`}
+                      >
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-4 h-4 ${
+                              star <= (recipe.averageRating || 0)
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-muted-foreground/30"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span>•</span>
+                        <span>{recipe.likes || 0} likes</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span>•</span>
-                      <span>{recipe.likes || 0} likes</span>
-                    </div>
-                  </div>
-                  <ItemDescription>
-                    {recipe.tags?.join(", ") || "No tags"}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link
-                      to={href("/recipes/:recipeId", { recipeId: recipe.id })}
-                    >
-                      Open
-                    </Link>
-                  </Button>
-                </ItemActions>
-              </Item>
-            ))}
-          </ItemGroup>
-        </>
-      )}
+                    <ItemDescription>
+                      {recipe.tags?.join(", ") || "No tags"}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link
+                        to={href("/recipes/:recipeId", { recipeId: recipe.id })}
+                      >
+                        Open
+                      </Link>
+                    </Button>
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
+          </>
+        )}
+      </section>
     </div>
   );
 }
