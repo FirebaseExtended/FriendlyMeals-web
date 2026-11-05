@@ -20,14 +20,14 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
   const onLogin = Boolean(useMatch(href("/login")));
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className={cn("border-b bg-background", isSsr && "ssr")}>
-        <div className="container max-w-6xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
+    <div className="min-h-screen bg-muted/40">
+      <header className={cn("border-b bg-card", isSsr && "ssr")}>
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link
             to={href("/recipes")}
             className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
           >
-            <Flame className="w-5 h-5 text-emerald-600" />
+            <Flame className="w-5 h-5 text-primary" />
             <span>Friendly Meals</span>
           </Link>
 
@@ -63,7 +63,9 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
           )}
         </div>
       </header>
-      <main className="container max-w-6xl mx-auto px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        {children}
+      </main>
     </div>
   );
 };

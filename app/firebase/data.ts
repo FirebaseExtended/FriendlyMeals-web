@@ -262,21 +262,27 @@ export function formatRecipeMarkdown(recipe: Recipe): string {
     recipe.ingredients.length > 0
       ? recipe.ingredients.map((item) => `- ${item}`).join("\n")
       : "- None listed";
+  const rawServings = String(recipe.servings ?? "").trim();
+  const servingsLabel = /^\d+$/.test(rawServings)
+    ? `${rawServings} servings`
+    : rawServings;
 
-  const instructionsBody = Array.isArray(recipe.instructions)
-    ? recipe.instructions
-        .map(
-          (step, idx) =>
-            `### ${idx + 1}. ${step.title}\n\n${step.content.trim()}`
-        )
-        .join("\n\n")
-    : String(recipe.instructions || "").trim();
+  const steps = Array.isArray(recipe.instructions) ? recipe.instructions : [];
+  const instructionsBody =
+    steps.length > 0
+      ? steps
+          .map(
+            (step, idx) =>
+              `### ${idx + 1}. ${step.title}\n\n${step.content.trim()}`
+          )
+          .join("\n\n")
+      : "No instructions listed.";
 
   return `# ${recipe.title}
 
 - **Prep Time:** ${recipe.prepTime}
 - **Cook Time:** ${recipe.cookTime}
-- **Servings:** ${recipe.servings}
+- **Servings:** ${servingsLabel}
 - **Rating:** ${ratingLabel}
 - **Likes:** ${recipe.likes}${tagsLine}
 

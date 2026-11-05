@@ -1,4 +1,9 @@
-import { getGenerativeModel, Schema } from "firebase/ai";
+import {
+  FinishReason,
+  getGenerativeModel,
+  Schema,
+  ThinkingLevel,
+} from "firebase/ai";
 import { getFirebaseAI } from "./firebase";
 import { getRecipeGenerationSettings } from "./remoteConfig";
 import type { InstructionStep, NewRecipeInput } from "./data";
@@ -61,7 +66,8 @@ export async function generateStructuredJsonRecipe(
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: recipeSchema,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
     },
   });
 
@@ -69,6 +75,10 @@ export async function generateStructuredJsonRecipe(
   const prompt = `Using the following list of ingredients, create a recipe${cuisineClause}: ${ingredients}.`;
 
   const result = await model.generateContent(prompt);
+  const finishReason = result.response.candidates?.[0]?.finishReason;
+  if (finishReason && finishReason !== FinishReason.STOP) {
+    throw new Error(`Recipe generation incomplete (${finishReason}).`);
+  }
   const parsed = JSON.parse(result.response.text()) as Partial<NewRecipeInput>;
 
   const instructions: InstructionStep[] = Array.isArray(parsed.instructions)

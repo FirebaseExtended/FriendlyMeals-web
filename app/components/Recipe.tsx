@@ -1,10 +1,10 @@
-import { ViewTransition, type FC } from "react";
+import { useState, ViewTransition, type FC } from "react";
 import { href, Link, useFetcher, useNavigate } from "react-router";
 import {
   ArrowLeft,
   Clock,
+  CookingPot,
   FileText,
-  Flame,
   Heart,
   Star,
   Users,
@@ -36,6 +36,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const navigate = useNavigate();
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
   const { user } = useAuthUser();
+  const [hoveredStar, setHoveredStar] = useState(0);
 
   const pendingIntent = fetcher.formData?.get("intent");
 
@@ -103,9 +104,15 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   };
 
   const isAuthor = Boolean(!readonly && user && user.uid === recipe.authorId);
+  const activeRating = hoveredStar || displayRating;
+  const steps = Array.isArray(recipe.instructions) ? recipe.instructions : [];
+  const servingsDisplay =
+    String(recipe.servings ?? "")
+      .replace(/\s*servings?\b/i, "")
+      .trim() || recipe.servings;
 
   const titleHeading = (
-    <h1 className="w-fit text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+    <h1 className="w-fit text-balance text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
       {recipe.title}
     </h1>
   );
@@ -139,7 +146,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
             />
           </div>
         ) : (
-          <div className="h-2 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-400" />
+          <div className="h-1.5 w-full bg-gradient-to-r from-primary via-teal-500 to-amber-400" />
         )}
 
         <div className="p-6 sm:p-8 space-y-6">
@@ -179,21 +186,27 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
             {!readonly && (
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-0.5">
+                <div
+                  className="flex items-center gap-0.5"
+                  onMouseLeave={() => setHoveredStar(0)}
+                >
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
                       aria-label={`Rate ${star} out of 5 stars`}
+                      onMouseEnter={() => setHoveredStar(star)}
+                      onFocus={() => setHoveredStar(star)}
+                      onBlur={() => setHoveredStar(0)}
                       onClick={() => handleRating(star)}
-                      className="p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Star
                         className={cn(
-                          "w-4 h-4 transition-colors cursor-pointer",
-                          star <= displayRating
+                          "w-4 h-4 transition-colors",
+                          star <= activeRating
                             ? "fill-amber-400 text-amber-400"
-                            : "text-muted-foreground/30 hover:text-amber-400"
+                            : "text-border hover:text-amber-400"
                         )}
                       />
                     </button>
@@ -218,7 +231,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                 {recipe.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-primary/10 text-primary"
                   >
                     {tag}
                   </span>
@@ -229,24 +242,24 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-border/60 py-3.5 text-sm">
             <div className="inline-flex items-center gap-2">
-              <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
+              <Clock className="w-4 h-4 text-primary shrink-0" />
               <span className="text-muted-foreground">Prep</span>
               <span className="font-semibold text-foreground">
                 {recipe.prepTime}
               </span>
             </div>
             <div className="inline-flex items-center gap-2">
-              <Flame className="w-4 h-4 text-emerald-600 shrink-0" />
+              <CookingPot className="w-4 h-4 text-primary shrink-0" />
               <span className="text-muted-foreground">Cook</span>
               <span className="font-semibold text-foreground">
                 {recipe.cookTime}
               </span>
             </div>
             <div className="inline-flex items-center gap-2">
-              <Users className="w-4 h-4 text-emerald-600 shrink-0" />
+              <Users className="w-4 h-4 text-primary shrink-0" />
               <span className="text-muted-foreground">Serves</span>
               <span className="font-semibold text-foreground">
-                {String(recipe.servings).replace(/\s*servings?\b/i, "")}
+                {servingsDisplay}
               </span>
             </div>
           </div>
@@ -276,37 +289,31 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Instructions
             </h2>
-            {Array.isArray(recipe.instructions) ? (
-              <ol className="space-y-5">
-                {recipe.instructions.map((step, index) => {
-                  const cleanTitle = step.title.replace(
-                    /^(?:step\s*\d+\s*[:.-]\s*|\d+\.\s*)/i,
-                    ""
-                  );
-                  return (
-                    <li key={index} className="flex items-start gap-3.5">
-                      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 tabular-nums">
-                        {index + 1}
-                      </span>
-                      <div className="space-y-1 min-w-0">
-                        {cleanTitle && (
-                          <h3 className="text-base font-semibold leading-snug text-foreground">
-                            {cleanTitle}
-                          </h3>
-                        )}
-                        <p className="text-sm sm:text-base text-foreground/85 leading-relaxed">
-                          {step.content}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <p className="text-sm sm:text-base text-foreground/85 leading-relaxed whitespace-pre-line">
-                {String(recipe.instructions ?? "")}
-              </p>
-            )}
+            <ol className="space-y-5">
+              {steps.map((step, index) => {
+                const cleanTitle = step.title.replace(
+                  /^(?:step\s*\d+\s*[:.-]\s*|\d+\.\s*)/i,
+                  ""
+                );
+                return (
+                  <li key={index} className="flex items-start gap-3.5">
+                    <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary tabular-nums">
+                      {index + 1}
+                    </span>
+                    <div className="space-y-1 min-w-0">
+                      {cleanTitle && (
+                        <h3 className="text-base font-semibold leading-snug text-foreground">
+                          {cleanTitle}
+                        </h3>
+                      )}
+                      <p className="text-sm sm:text-base text-foreground/85 leading-relaxed">
+                        {step.content}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           </section>
 
           {!readonly && recipe.id && (

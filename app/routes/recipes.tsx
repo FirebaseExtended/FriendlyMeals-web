@@ -21,6 +21,7 @@ import {
   ChevronUp,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Star,
   X,
 } from "lucide-react";
@@ -271,69 +272,92 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   );
 };
 
+const SORT_OPTIONS = [
+  { value: "none", label: "Default" },
+  { value: "rating", label: "Rating" },
+  { value: "title", label: "Alphabetical" },
+  { value: "likes", label: "Likes" },
+] as const;
+
 const FilterPanel: FC<{
   isOpen: boolean;
   onToggle: () => void;
   availableTags: string[];
   ssr: boolean;
 }> = ({ isOpen, onToggle, availableTags, ssr }) => {
-  const formRef = useRef<HTMLFormElement | null>(null);
   const [searchParams] = useSearchParams();
+  const submit = useSubmit();
   const navigation = useNavigation();
   const recipesPath = href("/recipes");
-  const isFiltering =
+  const [hoveredStar, setHoveredStar] = useState(0);
+
+  const activeSearchParams =
     navigation.state !== "idle" &&
-    navigation.location?.pathname === recipesPath;
+    navigation.location?.pathname === recipesPath
+      ? new URLSearchParams(navigation.location.search)
+      : searchParams;
 
-  const queryText = searchParams.get("q") || "";
+  const queryText = activeSearchParams.get("q") || "";
   const sortBy =
-    (searchParams.get("sort") as "rating" | "title" | "likes" | "none") ||
+    (activeSearchParams.get("sort") as "rating" | "title" | "likes" | "none") ||
     "none";
-  const initialSelectedTags =
-    searchParams.get("tags")?.split(",").filter(Boolean) || [];
-  const initialMinRating = Number(searchParams.get("minRating")) || 0;
+  const selectedTags =
+    activeSearchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const minRating = Number(activeSearchParams.get("minRating")) || 0;
 
-  const [minRating, setMinRating] = useState(initialMinRating);
-  const [selectedTags, setSelectedTags] =
-    useState<string[]>(initialSelectedTags);
+  const submitFilterUpdates = (updates: {
+    minRating?: number;
+    tags?: string[];
+    sort?: string;
+  }) => {
+    const nextParams = new URLSearchParams(activeSearchParams);
 
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
+    if (updates.minRating !== undefined) {
+      if (updates.minRating > 0) {
+        nextParams.set("minRating", String(updates.minRating));
+      } else {
+        nextParams.delete("minRating");
+      }
+    }
 
-  const handleLocalReset = () => {
-    formRef.current?.reset();
-    setMinRating(0);
-    setSelectedTags([]);
+    if (updates.tags !== undefined) {
+      if (updates.tags.length > 0) {
+        nextParams.set("tags", updates.tags.join(","));
+      } else {
+        nextParams.delete("tags");
+      }
+    }
+
+    if (updates.sort !== undefined) {
+      if (updates.sort && updates.sort !== "none") {
+        nextParams.set("sort", updates.sort);
+      } else {
+        nextParams.delete("sort");
+      }
+    }
+
+    submit(nextParams, {
+      method: "get",
+      action: recipesPath,
+      replace: true,
+    });
   };
 
   const hasPanelFilters =
-    initialMinRating > 0 ||
-    initialSelectedTags.length > 0 ||
+    minRating > 0 ||
+    selectedTags.length > 0 ||
     Boolean(sortBy && sortBy !== "none");
 
   const resetHref = queryText
     ? `${recipesPath}?q=${encodeURIComponent(queryText)}`
     : recipesPath;
 
-  const headerContent = (
-    <div className="flex items-center gap-2">
-      <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-      <span className="font-medium">Filters & Sort</span>
-      {hasPanelFilters && (
-        <span className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-          Active
-        </span>
-      )}
-    </div>
-  );
+  const activeRatingPreview = hoveredStar || minRating;
 
   return (
     <div
       className={cn(
-        "bg-card border rounded-xl overflow-hidden",
+        "rounded-xl border bg-card shadow-xs md:rounded-none md:border-0 md:bg-transparent md:shadow-none",
         ssr && "ssr"
       )}
     >
@@ -342,9 +366,17 @@ const FilterPanel: FC<{
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden"
+        className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden"
       >
-        {headerContent}
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+          <span className="font-medium">Filters & Sort</span>
+          {hasPanelFilters && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              Active
+            </span>
+          )}
+        </div>
         {isOpen ? (
           <ChevronUp className="w-4 h-4" />
         ) : (
@@ -353,15 +385,31 @@ const FilterPanel: FC<{
       </button>
 
       {/* Desktop static sidebar header */}
-      <div className="hidden md:flex items-center justify-between p-4">
-        {headerContent}
+      <div className="hidden md:flex items-center justify-between pb-3">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">
+            Filters & Sort
+          </span>
+        </div>
+        {hasPanelFilters && (
+          <Link
+            to={resetHref}
+            replace
+            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Clear
+          </Link>
+        )}
       </div>
 
       <Form
         method="get"
         action={recipesPath}
-        className={cn("p-4 border-t", !isOpen && "hidden md:block")}
-        ref={formRef}
+        className={cn(
+          "border-t p-4 md:border-t-0 md:p-0 md:pt-1",
+          !isOpen && "hidden md:block"
+        )}
       >
         {queryText && <input type="hidden" name="q" value={queryText} />}
         {minRating > 0 && (
@@ -378,31 +426,41 @@ const FilterPanel: FC<{
         <FieldGroup className="gap-5">
           <Field>
             <FieldLabel>Minimum Rating</FieldLabel>
-            <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1"
+              onMouseLeave={() => setHoveredStar(0)}
+            >
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   aria-label={`Minimum ${star} star${star === 1 ? "" : "s"}`}
+                  aria-pressed={minRating === star}
+                  onMouseEnter={() => setHoveredStar(star)}
+                  onFocus={() => setHoveredStar(star)}
+                  onBlur={() => setHoveredStar(0)}
                   onClick={() =>
-                    setMinRating(star === minRating ? 0 : star)
+                    submitFilterUpdates({
+                      minRating: star === minRating ? 0 : star,
+                    })
                   }
-                  className="p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Star
-                    className={`w-6 h-6 cursor-pointer transition-all ${
-                      star <= minRating
+                    className={cn(
+                      "w-5 h-5 transition-colors",
+                      star <= activeRatingPreview
                         ? "fill-amber-400 text-amber-400"
-                        : "text-muted-foreground/30 hover:text-amber-400"
-                    }`}
+                        : "text-border hover:text-amber-400"
+                    )}
                   />
                 </button>
               ))}
               {minRating > 0 && (
                 <button
                   type="button"
-                  onClick={() => setMinRating(0)}
-                  className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => submitFilterUpdates({ minRating: 0 })}
+                  className="ml-2 p-1 text-xs text-muted-foreground hover:text-foreground"
                   aria-label="Clear minimum rating"
                 >
                   <X className="w-4 h-4" />
@@ -415,20 +473,31 @@ const FilterPanel: FC<{
             <Field>
               <FieldLabel>Popular Tags</FieldLabel>
               <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => handleTagToggle(tag)}
-                    className={`px-3 py-1 text-xs rounded-full border transition-all ${
-                      selectedTags.includes(tag)
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background border-border hover:border-primary/50"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
+                {availableTags.map((tag) => {
+                  const selected = selectedTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        submitFilterUpdates({
+                          tags: selected
+                            ? selectedTags.filter((t) => t !== tag)
+                            : [...selectedTags, tag],
+                        })
+                      }
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs transition-colors",
+                        selected
+                          ? "border-primary bg-primary/10 font-medium text-primary"
+                          : "border-border bg-card text-foreground/80 hover:border-primary/50 hover:text-foreground"
+                      )}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
               </div>
             </Field>
           )}
@@ -436,80 +505,36 @@ const FilterPanel: FC<{
           <Field>
             <FieldLabel>Sort By</FieldLabel>
             <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sort"
-                  value="none"
-                  defaultChecked={!sortBy || sortBy === "none"}
-                  className="accent-primary"
-                />
-                <span className="text-sm">No sort</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sort"
-                  value="rating"
-                  defaultChecked={sortBy === "rating"}
-                  className="accent-primary"
-                />
-                <span className="text-sm">Rating</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sort"
-                  value="title"
-                  defaultChecked={sortBy === "title"}
-                  className="accent-primary"
-                />
-                <span className="text-sm">Alphabetical</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sort"
-                  value="likes"
-                  defaultChecked={sortBy === "likes"}
-                  className="accent-primary"
-                />
-                <span className="text-sm">Likes</span>
-              </label>
+              {SORT_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="sort"
+                    value={option.value}
+                    checked={sortBy === option.value}
+                    onChange={() => submitFilterUpdates({ sort: option.value })}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm">{option.label}</span>
+                </label>
+              ))}
             </div>
           </Field>
 
-          <div className="flex items-center gap-2 pt-3 border-t border-border/60">
-            {hasPanelFilters ? (
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
+          {hasPanelFilters && (
+            <div className="border-t border-border/60 pt-3 md:hidden">
+              <Link
+                to={resetHref}
+                replace
+                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Link to={resetHref}>Reset</Link>
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleLocalReset}
-                className="text-muted-foreground"
-              >
-                Reset
-              </Button>
-            )}
-            <Button
-              type="submit"
-              variant="secondary"
-              size="sm"
-              disabled={isFiltering}
-              className="ml-auto px-4 font-semibold"
-            >
-              {isFiltering ? "Filtering..." : "Apply Filters"}
-            </Button>
-          </div>
+                Clear filters
+              </Link>
+            </div>
+          )}
         </FieldGroup>
       </Form>
     </div>
@@ -519,9 +544,17 @@ const FilterPanel: FC<{
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const { recipes, topTags, ssr } = loaderData;
   const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const recipesPath = href("/recipes");
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const hasFilters = Array.from(searchParams.entries()).some(
+  const activeSearchParams =
+    navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath
+      ? new URLSearchParams(navigation.location.search)
+      : searchParams;
+
+  const hasFilters = Array.from(activeSearchParams.entries()).some(
     ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
   );
 
@@ -529,21 +562,31 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     return <ZeroState ssr={ssr} />;
   }
 
-  const panelFilterKey = [
-    searchParams.get("minRating") || "",
-    searchParams.get("tags") || "",
-    searchParams.get("sort") || "",
-  ].join("|");
+  const activeQueryText = activeSearchParams.get("q")?.trim() || "";
+  const activeMinRating = Number(activeSearchParams.get("minRating")) || 0;
+  const activeTags =
+    activeSearchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const activeSort = activeSearchParams.get("sort") || "none";
+  const activeSortLabel =
+    activeSort !== "none"
+      ? SORT_OPTIONS.find((opt) => opt.value === activeSort)?.label
+      : undefined;
+
+  const buildFilterHref = (mutate: (params: URLSearchParams) => void) => {
+    const next = new URLSearchParams(activeSearchParams);
+    mutate(next);
+    const qs = next.toString();
+    return qs ? `${recipesPath}?${qs}` : recipesPath;
+  };
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-[270px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-6 md:gap-y-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4">
       <div className="md:col-start-2 md:row-start-1">
         <SearchBar ssr={ssr} />
       </div>
 
-      <aside className="md:col-start-1 md:row-start-1 md:row-span-2 md:sticky md:top-4 md:self-start">
+      <aside className="md:col-start-1 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start">
         <FilterPanel
-          key={panelFilterKey}
           isOpen={filterOpen}
           onToggle={() => setFilterOpen(!filterOpen)}
           availableTags={topTags}
@@ -552,104 +595,195 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       </aside>
 
       <section className="min-w-0 md:col-start-2 md:row-start-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-base font-semibold text-foreground">
+            Recipes{" "}
+            <span className="text-sm font-normal text-muted-foreground tabular-nums">
+              ({recipes.length})
+            </span>
+          </h1>
+
+          {hasFilters && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {activeMinRating > 0 && (
+                <Link
+                  to={buildFilterHref((p) => p.delete("minRating"))}
+                  replace
+                  aria-label={`Remove ${activeMinRating} star minimum filter`}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+                >
+                  <span>{activeMinRating}★+</span>
+                  <X className="size-3" />
+                </Link>
+              )}
+              {activeTags.map((tag) => (
+                <Link
+                  key={tag}
+                  to={buildFilterHref((p) => {
+                    const remaining = activeTags.filter((t) => t !== tag);
+                    if (remaining.length > 0) {
+                      p.set("tags", remaining.join(","));
+                    } else {
+                      p.delete("tags");
+                    }
+                  })}
+                  replace
+                  aria-label={`Remove ${tag} tag filter`}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+                >
+                  <span>{tag}</span>
+                  <X className="size-3" />
+                </Link>
+              ))}
+              {activeSortLabel && (
+                <Link
+                  to={buildFilterHref((p) => p.delete("sort"))}
+                  replace
+                  aria-label={`Remove ${activeSortLabel} sort`}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span>Sort: {activeSortLabel}</span>
+                  <X className="size-3" />
+                </Link>
+              )}
+              <Link
+                to={recipesPath}
+                replace
+                className="px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear all
+              </Link>
+            </div>
+          )}
+        </div>
+
         {!recipes || recipes.length === 0 ? (
           <div
             className={cn(
-              "text-center py-12 rounded-xl border bg-card",
+              "space-y-4 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
               ssr && "ssr"
             )}
           >
-            <p className="text-muted-foreground">
-              No recipes match your search or filters.
-            </p>
-            <Button asChild variant="link" className="mt-2">
-              <Link to={href("/recipes")}>Clear search & filters</Link>
-            </Button>
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              {activeQueryText ? (
+                <Sparkles className="size-5" />
+              ) : (
+                <Search className="size-5" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-foreground">
+                {activeQueryText
+                  ? `No recipes found for "${activeQueryText}"`
+                  : "No recipes match these filters"}
+              </p>
+              <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                {activeQueryText
+                  ? "Want Gemini to turn that into a fresh recipe, or clear your filters to browse the full cookbook?"
+                  : "Try removing a filter to see more recipes from the cookbook."}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              {activeQueryText && (
+                <Button asChild size="sm" className="gap-1.5">
+                  <Link
+                    to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>Generate a "{activeQueryText}" recipe</span>
+                  </Link>
+                </Button>
+              )}
+              <Button
+                asChild
+                variant={activeQueryText ? "outline" : "secondary"}
+                size="sm"
+              >
+                <Link to={recipesPath} replace>
+                  Clear search & filters
+                </Link>
+              </Button>
+            </div>
           </div>
         ) : (
-          <>
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-              {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
-            </h3>
-            <ItemGroup className="gap-3">
-              {recipes.map((recipe: Recipe) => (
-                <Item
-                  key={recipe.id}
-                  asChild
-                  variant="outline"
-                  className={cn(
-                    "rounded-xl bg-card p-5 hover:border-emerald-500/40 hover:shadow-xs transition-all",
-                    ssr && "ssr"
+          <ItemGroup className="gap-3">
+            {recipes.map((recipe: Recipe) => (
+              <Item
+                key={recipe.id}
+                asChild
+                variant="outline"
+                className={cn(
+                  "rounded-xl bg-card p-5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                  ssr && "ssr"
+                )}
+              >
+                <Link to={href("/recipes/:recipeId", { recipeId: recipe.id })}>
+                  {isSafeImageUrl(recipe.imageUri) && (
+                    <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
+                      <img
+                        src={recipe.imageUri}
+                        alt={recipe.title}
+                        className="size-full object-cover"
+                      />
+                    </ItemMedia>
                   )}
-                >
-                  <Link to={href("/recipes/:recipeId", { recipeId: recipe.id })}>
-                    {isSafeImageUrl(recipe.imageUri) && (
-                      <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
-                        <img
-                          src={recipe.imageUri}
-                          alt={recipe.title}
-                          className="size-full object-cover"
-                        />
-                      </ItemMedia>
-                    )}
-                    <ItemContent className="gap-1.5">
-                      <ViewTransition
-                        name={getRecipeTitleTransitionName(recipe.id)}
-                        default="none"
-                        share="vt-recipe-title"
-                      >
-                        <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-emerald-700 dark:group-hover/item:text-emerald-400 transition-colors">
-                          {recipe.title}
-                        </ItemTitle>
-                      </ViewTransition>
-                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-                        {recipe.averageRating > 0 ? (
-                          <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            {recipe.averageRating.toFixed(1)}
-                          </span>
-                        ) : (
-                          <span>New</span>
-                        )}
-                        {recipe.likes > 0 && (
-                          <span>
-                            • {recipe.likes}{" "}
-                            {recipe.likes === 1 ? "like" : "likes"}
-                          </span>
-                        )}
-                        {(recipe.prepTime || recipe.cookTime) && (
-                          <span>
-                            •{" "}
-                            {[
-                              recipe.prepTime && `Prep ${recipe.prepTime}`,
-                              recipe.cookTime && `Cook ${recipe.cookTime}`,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        )}
-                      </div>
-                      {recipe.tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {recipe.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                  <ItemContent className="gap-1.5">
+                    <ViewTransition
+                      name={getRecipeTitleTransitionName(recipe.id)}
+                      default="none"
+                      share="vt-recipe-title"
+                    >
+                      <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-primary transition-colors">
+                        {recipe.title}
+                      </ItemTitle>
+                    </ViewTransition>
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                      {recipe.averageRating > 0 ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          {recipe.averageRating.toFixed(1)}
+                        </span>
+                      ) : (
+                        <span>New</span>
                       )}
-                    </ItemContent>
-                    <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
-                      <ChevronRight className="w-5 h-5" />
-                    </ItemActions>
-                  </Link>
-                </Item>
-              ))}
-            </ItemGroup>
-          </>
+                      {recipe.likes > 0 && (
+                        <span>
+                          • {recipe.likes}{" "}
+                          {recipe.likes === 1 ? "like" : "likes"}
+                        </span>
+                      )}
+                      {(recipe.prepTime || recipe.cookTime) && (
+                        <span>
+                          •{" "}
+                          {[
+                            recipe.prepTime && `Prep ${recipe.prepTime}`,
+                            recipe.cookTime && `Cook ${recipe.cookTime}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      )}
+                    </div>
+                    {recipe.tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {recipe.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </ItemContent>
+                  <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
+                    <ChevronRight className="w-5 h-5" />
+                  </ItemActions>
+                </Link>
+              </Item>
+            ))}
+          </ItemGroup>
         )}
       </section>
     </div>
