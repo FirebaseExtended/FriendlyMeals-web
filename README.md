@@ -5,7 +5,7 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 - **Firebase AI Logic (`firebase/ai`)**: Generates structured JSON recipes from the browser with `gemini-3.8-flash` and `Schema.object`.
 - **Firestore Enterprise (`firebase/firestore/pipelines`)**: Computes recipe review averages, like counts, tags, and search filters in a single pipeline query shared between Node SSR `loader`s and browser `clientLoader`s.
 - **React Router SSR + resource routes**: Renders `/`, `/recipes`, and `/recipes/:recipeId` on the server with Cloud CDN `Cache-Control` headers, skips the server hop on subsequent SPA navigations, handles mutations with `clientAction` + `useFetcher`, and serves raw `text/markdown` at `/recipes/:recipeId.md` for agents and `curl`.
-- **Firebase Authentication (`@firebase-oss/ui-shadcn`)**: Prebuilt Shadcn sign-in and sign-up screens (Email/Password + Google) with client-side route protection (`clientMiddleware` + silent auth redirect in `app/routes/_protected.tsx`) and `request.auth.uid` Security Rules.
+- **Firebase Authentication (`@firebase-oss/ui-shadcn`)**: Prebuilt Shadcn sign-in and sign-up screens (Email/Password + Google) with client-side route protection (`clientMiddleware` + silent auth redirect in `app/routes/_protected.tsx`), a client-hydrated `/logout` route, and `request.auth.uid` Security Rules.
 - **Production hardening + App Hosting**: Browser-guarded Firebase App Check, Remote Config (`recipe_system_prompt` and `recipe_model`), Crashlytics for Web (`<HydratedRouter onError>` + `entry.server.tsx handleError` + hidden sourcemaps), and Firebase App Hosting (`apphosting.yaml`).
 
 ## Setup

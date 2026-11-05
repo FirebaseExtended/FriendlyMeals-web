@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { href, useNavigate } from "react-router";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { IngredientInput } from "@/components/IngredientInput";
 import RecipeDetail from "@/components/Recipe";
 import { Button } from "@/components/ui/button";
@@ -108,96 +108,97 @@ export default function GeneratePage() {
       }
     : null;
 
-  const showFormBody = !previewRecipe || isInputExpanded;
+  const showComposer = !previewRecipe || isInputExpanded;
 
   return (
-    <div className="flex flex-col gap-5 max-w-2xl mx-auto">
-      <div
+    <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+      <section
         className={cn(
-          "bg-card border rounded-xl overflow-hidden shadow-xs",
-          isSsr && "ssr"
+          "space-y-5",
+          !previewRecipe && "pt-4 sm:pt-8",
+          !showComposer && "hidden"
         )}
       >
-        {previewRecipe ? (
-          <button
-            type="button"
-            aria-expanded={isInputExpanded}
-            onClick={() => setIsInputExpanded(!isInputExpanded)}
-            className="w-full flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-muted/50 transition-colors text-left cursor-pointer"
+        <div className="space-y-1.5">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {previewRecipe ? "Refine your recipe" : "What's in your kitchen?"}
+          </h1>
+          {!previewRecipe && (
+            <p className="text-sm sm:text-base text-muted-foreground">
+              List the ingredients you have on hand and Gemini will put together
+              a home-cooked recipe.
+            </p>
+          )}
+        </div>
+
+        <IngredientInput
+          isLoading={loadingMessage || false}
+          submitDisabled={!authReady || !user}
+          hasPreview={Boolean(previewRecipe)}
+          onCancelEdit={() => setIsInputExpanded(false)}
+          ssr={isSsr}
+          handleSubmit={handleGenerateRecipe}
+        />
+
+        {errorMessage && (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium shrink-0">Generate New Recipe</span>
+            {errorMessage}
+          </div>
+        )}
+      </section>
+
+      {previewRecipe && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/40 px-4 py-3">
+            <div className="flex items-center gap-2 min-w-0 text-sm">
+              <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-semibold text-emerald-950 dark:text-emerald-200 shrink-0">
+                Draft ready
+              </span>
               {!isInputExpanded && lastPrompt && (
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="hidden sm:inline truncate text-emerald-800/80 dark:text-emerald-300/80">
                   •{" "}
                   {lastPrompt.cuisineType ? `${lastPrompt.cuisineType}: ` : ""}
                   {lastPrompt.ingredients}
                 </span>
               )}
             </div>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0">
-              <span>{isInputExpanded ? "Hide" : "Edit"}</span>
-              {isInputExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </span>
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 px-5 py-4">
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            <h1 className="font-semibold text-foreground">
-              Generate New Recipe
-            </h1>
-          </div>
-        )}
 
-        <div
-          className={cn(
-            "p-5 border-t bg-muted/10 space-y-4",
-            !showFormBody && "hidden"
-          )}
-        >
-          <IngredientInput
-            isLoading={loadingMessage || false}
-            submitDisabled={!authReady || !user}
-            handleSubmit={handleGenerateRecipe}
-          />
-          {errorMessage && (
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              {!isInputExpanded && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsInputExpanded(true)}
+                  className="h-8 px-2.5 text-emerald-900 hover:bg-emerald-100/80 hover:text-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900/50"
+                >
+                  Edit prompt
+                </Button>
+              )}
+              <Button
+                onClick={handlePublish}
+                disabled={loadingMessage === "Publishing recipe"}
+                size="sm"
+              >
+                {loadingMessage === "Publishing recipe"
+                  ? "Publishing..."
+                  : "Publish to Cookbook"}
+              </Button>
+            </div>
+          </div>
+
+          {!showComposer && errorMessage && (
             <div
               role="alert"
-              className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
             >
               {errorMessage}
             </div>
           )}
-        </div>
-      </div>
-
-      {previewRecipe && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/40 px-4 py-3">
-            <div className="text-sm">
-              <span className="font-semibold text-emerald-950 dark:text-emerald-200">
-                Draft recipe ready
-              </span>
-              <span className="hidden sm:inline text-emerald-800/80 dark:text-emerald-300/80">
-                {" "}
-                • Review below and save it to the community cookbook.
-              </span>
-            </div>
-            <Button
-              onClick={handlePublish}
-              disabled={loadingMessage === "Publishing recipe"}
-              size="sm"
-            >
-              {loadingMessage === "Publishing recipe"
-                ? "Publishing..."
-                : "Publish to Cookbook"}
-            </Button>
-          </div>
 
           <RecipeDetail recipe={previewRecipe} readonly />
         </div>

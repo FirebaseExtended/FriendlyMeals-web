@@ -15,6 +15,7 @@ export default [
   // Main application shell
   layout("components/Layout.tsx", [
     route("login", "routes/login.tsx"),
+    route("logout", "routes/logout.tsx"),
     route("recipes", "routes/recipes.tsx"),
     route("recipes/:recipeId", "routes/recipe.$recipeId.tsx"),
 
