@@ -6,7 +6,6 @@ import {
   getDoc,
   getFirestore,
   setDoc,
-  type DocumentData,
 } from "firebase/firestore";
 import {
   average,
@@ -67,31 +66,6 @@ export interface RecipeFilters {
 // Firestore Enterprise requires a named database ID (here "friendlymeals", matching firebase.json)
 export const db = getFirestore(firebaseApp, "friendlymeals");
 
-function normalizeRecipe(id: string, data: DocumentData): Recipe {
-  return {
-    id,
-    title: typeof data.title === "string" ? data.title : "Untitled Recipe",
-    instructions: typeof data.instructions === "string" ? data.instructions : "",
-    ingredients: Array.isArray(data.ingredients)
-      ? data.ingredients.map(String)
-      : [],
-    authorId: typeof data.authorId === "string" ? data.authorId : "",
-    tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
-    averageRating:
-      typeof data.averageRating === "number" && !Number.isNaN(data.averageRating)
-        ? data.averageRating
-        : 0,
-    likes:
-      typeof data.likes === "number" && !Number.isNaN(data.likes)
-        ? data.likes
-        : 0,
-    prepTime: typeof data.prepTime === "string" ? data.prepTime : "N/A",
-    cookTime: typeof data.cookTime === "string" ? data.cookTime : "N/A",
-    servings: typeof data.servings === "string" ? data.servings : "N/A",
-    imageUri: typeof data.imageUri === "string" ? data.imageUri : undefined,
-  };
-}
-
 export async function getTop5Tags(): Promise<string[]> {
   const pipeline = db
     .pipeline()
@@ -151,7 +125,10 @@ export async function getRecipe(recipeId: string): Promise<Recipe | null> {
     return null;
   }
 
-  return normalizeRecipe(result.id, raw);
+  return {
+    ...raw,
+    id: result.id,
+  } as Recipe;
 }
 
 export async function deleteRecipe(recipeId: string): Promise<void> {
@@ -264,7 +241,7 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
   pipeline = pipeline.limit(50);
 
   const { results } = await execute(pipeline);
-  return results.map((result) => normalizeRecipe(result.id, result.data()));
+  return results.map((result) => ({ ...result.data(), id: result.id }) as Recipe);
 }
 
 export function formatRecipeMarkdown(recipe: Recipe): string {
