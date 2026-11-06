@@ -1347,21 +1347,9 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
               })}
             </ul>
 
-            {(hasMore ||
-              recipes.length > DEFAULT_RECIPES_LIMIT ||
-              searchParams.has("limit")) && (
-              <div className="mt-7 mb-2 flex flex-col items-center gap-3 text-center">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
-                  <span aria-hidden="true" className="h-px w-10 bg-border" />
-                  <span>
-                    {hasMore
-                      ? `Showing ${recipes.length} recipes`
-                      : `All ${recipes.length} recipes shown`}
-                  </span>
-                  <span aria-hidden="true" className="h-px w-10 bg-border" />
-                </div>
-
-                {hasMore && currentLimit < MAX_RECIPES_LIMIT ? (
+            {hasMore && (
+              <div className="mt-6 flex justify-center text-center">
+                {currentLimit < MAX_RECIPES_LIMIT ? (
                   isLoadingMore ? (
                     <Button
                       type="button"
@@ -1394,7 +1382,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       </Link>
                     </Button>
                   )
-                ) : hasMore ? (
+                ) : (
                   <p className="text-xs text-muted-foreground">
                     Showing the first {MAX_RECIPES_LIMIT} recipes.{" "}
                     <button
@@ -1413,16 +1401,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                     </button>{" "}
                     to narrow down.
                   </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      window.scrollTo({ top: 0, behavior: "smooth" })
-                    }
-                    className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Back to top ↑
-                  </button>
                 )}
               </div>
             )}
