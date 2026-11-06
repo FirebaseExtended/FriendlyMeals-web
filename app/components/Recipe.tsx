@@ -16,14 +16,9 @@ import { useBackToRecipesHref } from "@/lib/navigation";
 import {
   cn,
   getRecipeTitleTransitionName,
+  isSafeImageUrl,
   NAV_RECIPES_TRANSITION_NAME,
 } from "@/lib/utils";
-
-function isSafeImageUrl(url: string | undefined): url is string {
-  return Boolean(
-    url && (url.startsWith("https://") || url.startsWith("http://"))
-  );
-}
 
 interface RecipeDetailProps {
   recipe: Recipe;
