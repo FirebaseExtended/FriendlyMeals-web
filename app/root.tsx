@@ -14,6 +14,19 @@ import { useWasServerRendered } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
 import "./index.css";
 
+export const links: Route.LinksFunction = () => [
+  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  {
+    rel: "preconnect",
+    href: "https://fonts.gstatic.com",
+    crossOrigin: "anonymous",
+  },
+  {
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=Londrina+Shadow&family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap",
+  },
+];
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">

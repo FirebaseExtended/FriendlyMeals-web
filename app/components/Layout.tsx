@@ -43,7 +43,7 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
             >
               <Link
                 to={href("/recipes")}
-                className="inline-flex w-fit items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
+                className="inline-flex w-fit items-center gap-2 font-display text-2xl sm:text-[1.65rem] font-normal tracking-wide hover:opacity-85 transition-opacity"
               >
                 <Flame aria-hidden="true" className="w-5 h-5 text-primary" />
                 <span>Friendly Meals</span>

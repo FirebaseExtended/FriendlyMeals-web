@@ -425,7 +425,9 @@ const FilterPanel: FC<{
             aria-hidden="true"
             className="w-4 h-4 text-muted-foreground"
           />
-          <span className="font-medium">Filter</span>
+          <span className="font-display text-lg font-normal tracking-wide">
+            Filter
+          </span>
           {hasPanelFilters && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               Active
@@ -446,7 +448,7 @@ const FilterPanel: FC<{
             aria-hidden="true"
             className="w-4 h-4 text-muted-foreground"
           />
-          <h2 className="text-sm font-semibold text-foreground">Filter</h2>
+          <h2 className="text-lg font-normal text-foreground">Filter</h2>
         </div>
         {hasPanelFilters && (
           <Link
@@ -682,10 +684,10 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         <div className="mb-3 flex items-center justify-between gap-3">
           <h1
             id="recipes-heading"
-            className="text-base font-semibold text-foreground"
+            className="text-2xl font-normal text-foreground"
           >
             Recipes{" "}
-            <span className="text-sm font-normal text-muted-foreground tabular-nums">
+            <span className="font-serif text-sm font-normal tracking-normal text-muted-foreground tabular-nums">
               ({recipes.length})
             </span>
           </h1>
@@ -783,7 +785,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                           >
                             <ItemTitle
                               asChild
-                              className="mb-1.5 text-base font-semibold text-foreground group-hover/item:text-primary transition-colors"
+                              className="mb-1 text-xl sm:text-[1.35rem] leading-snug font-normal text-foreground group-hover/item:text-primary transition-colors"
                             >
                               <h2>{recipe.title}</h2>
                             </ItemTitle>

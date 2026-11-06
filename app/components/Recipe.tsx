@@ -122,7 +122,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const StepHeadingTag = readonly ? "h4" : "h3";
 
   const titleHeading = (
-    <TitleTag className="w-fit text-balance text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+    <TitleTag className="w-fit text-balance text-3xl sm:text-4xl font-normal text-foreground">
       {recipe.title}
     </TitleTag>
   );
@@ -287,7 +287,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
           </dl>
 
           <section className="space-y-3">
-            <SectionHeadingTag className="text-lg font-semibold tracking-tight text-foreground">
+            <SectionHeadingTag className="text-2xl font-normal text-foreground">
               Ingredients
             </SectionHeadingTag>
             <ul className="divide-y divide-border/50">
@@ -308,7 +308,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
           </section>
 
           <section className="space-y-4">
-            <SectionHeadingTag className="text-lg font-semibold tracking-tight text-foreground">
+            <SectionHeadingTag className="text-2xl font-normal text-foreground">
               Instructions
             </SectionHeadingTag>
             <ol className="space-y-5">
@@ -327,7 +327,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                     </span>
                     <div className="space-y-1 min-w-0">
                       {cleanTitle && (
-                        <StepHeadingTag className="text-base font-semibold leading-snug text-foreground">
+                        <StepHeadingTag className="text-xl font-normal leading-snug text-foreground">
                           {cleanTitle}
                         </StepHeadingTag>
                       )}
