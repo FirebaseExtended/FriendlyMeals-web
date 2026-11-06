@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { data, href, redirect } from "react-router";
+import {
+  data,
+  href,
+  redirect,
+  type ShouldRevalidateFunctionArgs,
+} from "react-router";
 import type { Route } from "./+types/recipe.$recipeId";
 import RecipeDetail from "@/components/Recipe";
 import {
@@ -13,6 +18,9 @@ import {
 import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
 import { getRecipesHrefWithSearch } from "@/lib/navigation";
+import { isDebugSsrEnabled } from "@/lib/ssr";
+
+export const handle = { hideHeader: true };
 
 const PUBLIC_RECIPE_CACHE_CONTROL =
   "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
@@ -34,7 +42,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 // Initial HTML request runs on the server and can be cached by Cloud CDN
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
   if (!params.recipeId) {
     throw data("No recipe ID provided", { status: 400 });
   }
@@ -42,6 +50,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!recipe) {
     throw data("Recipe not found", { status: 404 });
   }
+  const cacheControl = isDebugSsrEnabled(new URL(request.url).searchParams)
+    ? "private, no-store"
+    : PUBLIC_RECIPE_CACHE_CONTROL;
   return data(
     {
       recipe,
@@ -50,7 +61,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       ssr: true,
     },
     {
-      headers: { "Cache-Control": PUBLIC_RECIPE_CACHE_CONTROL },
+      headers: { "Cache-Control": cacheControl },
     }
   );
 }
@@ -76,6 +87,27 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
     checkedLikesForUid: user?.uid ?? null,
     ssr: false,
   };
+}
+
+export function shouldRevalidate({
+  actionResult,
+  currentParams,
+  nextParams,
+  formMethod,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  if (formMethod && formMethod.toLowerCase() !== "get") {
+    if (
+      actionResult &&
+      typeof actionResult === "object" &&
+      "ok" in actionResult &&
+      actionResult.ok === false
+    ) {
+      return false;
+    }
+    return defaultShouldRevalidate;
+  }
+  return currentParams.recipeId !== nextParams.recipeId;
 }
 
 // Client mutations run with browser Firebase Auth credentials and automatically revalidate clientLoader
@@ -180,23 +212,23 @@ export default function RecipePage({ loaderData }: Route.ComponentProps) {
     };
   }, [authReady, user?.uid, checkedLikesForUid, recipe.id]);
 
-  const resolvedIsLiked =
-    authReady && !user
-      ? false
-      : checkedLikesForUid && (!authReady || checkedLikesForUid === user?.uid)
-        ? isLiked
-        : user &&
-            clientLikedLookup?.recipeId === recipe.id &&
-            clientLikedLookup.uid === user.uid
-          ? clientLikedLookup.liked
-          : isLiked;
+  const uid = user?.uid ?? null;
+  const hasLoaderLikesForUser = Boolean(uid && checkedLikesForUid === uid);
+  const hasHydratedLikesForUser = Boolean(
+    uid &&
+    clientLikedLookup?.recipeId === recipe.id &&
+    clientLikedLookup.uid === uid
+  );
+
+  let resolvedIsLiked = false;
+  if (hasLoaderLikesForUser) {
+    resolvedIsLiked = isLiked;
+  } else if (hasHydratedLikesForUser && clientLikedLookup) {
+    resolvedIsLiked = clientLikedLookup.liked;
+  }
 
   const isLikeStateReady =
-    authReady &&
-    (!user ||
-      checkedLikesForUid === user.uid ||
-      (clientLikedLookup?.recipeId === recipe.id &&
-        clientLikedLookup.uid === user.uid));
+    authReady && (!uid || hasLoaderLikesForUser || hasHydratedLikesForUser);
 
   return (
     <RecipeDetail

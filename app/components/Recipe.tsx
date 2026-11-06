@@ -1,5 +1,5 @@
 import { useState, ViewTransition, type FC } from "react";
-import { href, Link, useFetcher, useNavigate } from "react-router";
+import { href, Link, useFetcher } from "react-router";
 import {
   ArrowLeft,
   Clock,
@@ -40,7 +40,6 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   readonly = false,
   ssr = false,
 }) => {
-  const navigate = useNavigate();
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
   const { user, authReady } = useAuthUser();
   const { backHref, recipesSearch } = useBackToRecipesHref();
@@ -51,37 +50,31 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const pendingIntent = fetcher.formData?.get("intent");
 
   const optimisticLiked =
-    pendingIntent === "like"
+    user && pendingIntent === "like"
       ? fetcher.formData?.get("nextLiked") === "true"
       : isLiked;
 
   const optimisticLikesCount =
-    pendingIntent === "like" && optimisticLiked !== isLiked
+    user && pendingIntent === "like" && optimisticLiked !== isLiked
       ? Math.max(0, (recipe.likes || 0) + (optimisticLiked ? 1 : -1))
       : recipe.likes || 0;
 
-  const pendingRating =
-    pendingIntent === "rate" ? Number(fetcher.formData?.get("rating")) : NaN;
-  const displayRating =
-    !Number.isNaN(pendingRating) && pendingRating >= 1 && pendingRating <= 5
-      ? pendingRating
-      : recipe.averageRating || 0;
+  const rawPendingRating =
+    user && pendingIntent === "rate"
+      ? Number(fetcher.formData?.get("rating"))
+      : NaN;
+  const pendingUserRating =
+    !Number.isNaN(rawPendingRating) &&
+    rawPendingRating >= 1 &&
+    rawPendingRating <= 5
+      ? rawPendingRating
+      : null;
+  const averageRating = recipe.averageRating || 0;
 
   const isDeleting = pendingIntent === "delete";
 
-  const redirectToSignIn = () => {
-    const recipePath = href("/recipes/:recipeId", { recipeId: recipe.id });
-    void navigate(
-      `${href("/login")}?redirectTo=${encodeURIComponent(recipePath)}`
-    );
-  };
-
   const handleLikeToggle = () => {
     if (readonly || isLikeDisabled) return;
-    if (!user) {
-      redirectToSignIn();
-      return;
-    }
 
     void fetcher.submit(
       {
@@ -94,10 +87,6 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
   const handleRating = (newRating: number) => {
     if (readonly) return;
-    if (!user) {
-      redirectToSignIn();
-      return;
-    }
 
     void fetcher.submit(
       {
@@ -121,7 +110,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   };
 
   const isAuthor = Boolean(!readonly && user && user.uid === recipe.authorId);
-  const activeRating = hoveredStar || displayRating;
+  const activeRating = hoveredStar || pendingUserRating || averageRating;
   const steps = Array.isArray(recipe.instructions) ? recipe.instructions : [];
   const servingsDisplay =
     (recipe.servings ?? "").replace(/\s*servings?\b/i, "").trim() ||
@@ -148,6 +137,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
           >
             <Link
               to={backHref}
+              prefetch="intent"
               className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft aria-hidden="true" className="w-4 h-4" />
@@ -245,9 +235,11 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                     ))}
                   </div>
                   <span className="text-sm text-muted-foreground font-medium">
-                    {displayRating > 0
-                      ? displayRating.toFixed(1)
-                      : "Rate this recipe"}
+                    {pendingUserRating !== null
+                      ? "Saving..."
+                      : averageRating > 0
+                        ? averageRating.toFixed(1)
+                        : "Rate this recipe"}
                   </span>
                 </div>
               </fieldset>

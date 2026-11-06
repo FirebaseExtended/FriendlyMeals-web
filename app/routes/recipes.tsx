@@ -11,9 +11,11 @@ import {
   Form,
   href,
   Link,
+  NavigationType,
   redirect,
   useLocation,
   useNavigation,
+  useNavigationType,
   useRevalidator,
   useSearchParams,
   useSubmit,
@@ -70,6 +72,7 @@ import {
   buildRecipesReturnState,
   type RecipesReturnState,
 } from "@/lib/navigation";
+import { isDebugSsrEnabled } from "@/lib/ssr";
 import { cn, getRecipeTitleTransitionName } from "@/lib/utils";
 
 const PUBLIC_RECIPES_CACHE_CONTROL =
@@ -207,7 +210,6 @@ export async function loader({ request }: Route.LoaderArgs) {
         hasMore: false,
         topTags,
         ssr: true,
-        awaitingClientLikes: true,
         likedResolvedForUid: null as string | null,
       },
       {
@@ -217,26 +219,47 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   const payload = await loadRecipesCatalog(request);
+  const cacheControl = isDebugSsrEnabled(url.searchParams)
+    ? "private, no-store"
+    : PUBLIC_RECIPES_CACHE_CONTROL;
   return data(
     {
       ...payload,
       ssr: true,
-      awaitingClientLikes: false,
       likedResolvedForUid: null as string | null,
     },
     {
-      headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
+      headers: { "Cache-Control": cacheControl },
     }
   );
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
-let debounceNextSearchLoad = false;
+let debounceSearchQuery: string | null = null;
+let inFlightCatalogSearch: { locationKey: string; search: string } | null =
+  null;
 
-function consumeSearchDebounce(): boolean {
-  const shouldDebounce = debounceNextSearchLoad;
-  debounceNextSearchLoad = false;
-  return shouldDebounce;
+function getLatestCatalogSearchParams(
+  locationKey: string,
+  fallback: URLSearchParams
+): URLSearchParams {
+  if (inFlightCatalogSearch?.locationKey === locationKey) {
+    return new URLSearchParams(inFlightCatalogSearch.search);
+  }
+  return new URLSearchParams(fallback);
+}
+
+function recordInFlightCatalogSearch(
+  locationKey: string,
+  params: URLSearchParams
+) {
+  inFlightCatalogSearch = { locationKey, search: params.toString() };
+}
+
+function clearResolvedInFlightSearch(requestSearch: string, aborted: boolean) {
+  if (!aborted && inFlightCatalogSearch?.search === requestSearch) {
+    inFlightCatalogSearch = null;
+  }
 }
 
 function waitWithSignal(ms: number, signal: AbortSignal): Promise<boolean> {
@@ -258,7 +281,13 @@ function waitWithSignal(ms: number, signal: AbortSignal): Promise<boolean> {
 
 // Subsequent navigations and filter submissions run directly in the browser against Firestore
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  if (consumeSearchDebounce()) {
+  const url = new URL(request.url);
+  const requestSearch = url.searchParams.toString();
+  const shouldDebounce =
+    debounceSearchQuery !== null && debounceSearchQuery === requestSearch;
+  debounceSearchQuery = null;
+
+  if (shouldDebounce) {
     const ready = await waitWithSignal(SEARCH_DEBOUNCE_MS, request.signal);
     if (!ready) {
       // Aborted by a newer keystroke or navigation; router discards this result via request.signal.aborted
@@ -267,16 +296,15 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
         hasMore: false,
         topTags: [],
         ssr: false,
-        awaitingClientLikes: false,
         likedResolvedForUid: null as string | null,
       };
     }
   }
 
-  const url = new URL(request.url);
   if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
     const user = await waitForAuthReady();
     if (!user) {
+      clearResolvedInFlightSearch(requestSearch, request.signal.aborted);
       url.searchParams.delete("liked");
       url.searchParams.delete("limit");
       const fallbackQs = url.searchParams.toString();
@@ -285,19 +313,19 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
       );
     }
     const payload = await loadRecipesCatalog(request, user.uid);
+    clearResolvedInFlightSearch(requestSearch, request.signal.aborted);
     return {
       ...payload,
       ssr: false,
-      awaitingClientLikes: false,
       likedResolvedForUid: user.uid,
     };
   }
 
   const payload = await loadRecipesCatalog(request);
+  clearResolvedInFlightSearch(requestSearch, request.signal.aborted);
   return {
     ...payload,
     ssr: false,
-    awaitingClientLikes: false,
     likedResolvedForUid: null as string | null,
   };
 }
@@ -458,7 +486,7 @@ const ZeroState: FC<{
         </EmptyHeader>
         <EmptyContent>
           <Button asChild>
-            <Link to={href("/generate")} state={returnState}>
+            <Link to={href("/generate")} state={returnState} prefetch="intent">
               Generate Recipe
             </Link>
           </Button>
@@ -468,13 +496,21 @@ const ZeroState: FC<{
   );
 };
 
-interface SearchLocationState {
-  isSearchSubmission?: boolean;
+function useOptimisticRecipesSearchParams(): URLSearchParams {
+  const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const recipesPath = href("/recipes");
+  return navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath
+    ? new URLSearchParams(navigation.location.search)
+    : searchParams;
 }
 
 const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const [searchParams] = useSearchParams();
+  const activeSearchParams = useOptimisticRecipesSearchParams();
   const location = useLocation();
+  const navigationType = useNavigationType();
   const submit = useSubmit();
   const navigation = useNavigation();
   const recipesPath = href("/recipes");
@@ -485,44 +521,26 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const [initialQuery] = useState(urlQuery);
   const [hasText, setHasText] = useState(Boolean(urlQuery));
 
-  // Native "popstate" fires exclusively on browser Back/Forward (never on pushState/replaceState)
+  // Sync uncontrolled input on Back/Forward ("POP") or external resets (e.g. header brand link)
   useEffect(() => {
-    const handlePopState = () => {
-      const poppedQuery =
-        new URLSearchParams(window.location.search).get("q") || "";
-      if (inputRef.current) {
-        inputRef.current.value = poppedQuery;
-      }
-      setHasText(Boolean(poppedQuery));
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, []);
-
-  // Sync uncontrolled input on external non-search navigations (e.g. header brand reset link)
-  useEffect(() => {
-    const state = location.state as SearchLocationState | null;
+    if (!location.key) return;
     if (
-      !state?.isSearchSubmission &&
-      location.key &&
-      inputRef.current &&
+      navigationType === NavigationType.Pop ||
       document.activeElement !== inputRef.current
     ) {
-      inputRef.current.value = urlQuery;
+      if (inputRef.current) {
+        inputRef.current.value = urlQuery;
+      }
       setHasText(Boolean(urlQuery));
     }
-  }, [location, urlQuery]);
-
-  const activeSearchParams =
-    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
-      ? new URLSearchParams(navigation.location.search)
-      : searchParams;
+  }, [location.key, navigationType, urlQuery]);
 
   const submitSearch = (nextValue: string, immediate = false) => {
     const trimmed = nextValue.trim();
-    const nextParams = new URLSearchParams(activeSearchParams);
+    const nextParams = getLatestCatalogSearchParams(
+      location.key,
+      activeSearchParams
+    );
     nextParams.delete("limit");
     if (trimmed) {
       nextParams.set("q", nextValue);
@@ -531,14 +549,14 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
     }
 
     const hadCommittedQuery = Boolean(searchParams.get("q"));
-    debounceNextSearchLoad = !immediate;
+    recordInFlightCatalogSearch(location.key, nextParams);
+    debounceSearchQuery = immediate ? null : nextParams.toString();
 
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
       replace: hadCommittedQuery || !trimmed,
       preventScrollReset: true,
-      state: { isSearchSubmission: true } satisfies SearchLocationState,
     });
   };
 
@@ -579,6 +597,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
       method="get"
       action={recipesPath}
       role="search"
+      aria-label="Search recipes"
       onSubmit={(e) => {
         e.preventDefault();
         submitSearch(inputRef.current?.value ?? "", true);
@@ -661,16 +680,11 @@ const FilterPanel: FC<{
   isSignedOut,
   ssr,
 }) => {
-  const [searchParams] = useSearchParams();
+  const activeSearchParams = useOptimisticRecipesSearchParams();
+  const location = useLocation();
   const submit = useSubmit();
-  const navigation = useNavigation();
   const recipesPath = href("/recipes");
   const [hoveredStar, setHoveredStar] = useState(0);
-
-  const activeSearchParams =
-    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
-      ? new URLSearchParams(navigation.location.search)
-      : searchParams;
 
   const queryText = activeSearchParams.get("q") || "";
   const sortBy = parseSortParam(activeSearchParams.get("sort"));
@@ -685,7 +699,10 @@ const FilterPanel: FC<{
     minRating?: number;
     tags?: string[];
   }) => {
-    const nextParams = new URLSearchParams(activeSearchParams);
+    const nextParams = getLatestCatalogSearchParams(
+      location.key,
+      activeSearchParams
+    );
     nextParams.delete("limit");
 
     if (updates.liked !== undefined) {
@@ -711,6 +728,9 @@ const FilterPanel: FC<{
         nextParams.delete("tags");
       }
     }
+
+    recordInFlightCatalogSearch(location.key, nextParams);
+    debounceSearchQuery = null;
 
     void submit(nextParams, {
       method: "get",
@@ -745,7 +765,7 @@ const FilterPanel: FC<{
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        aria-controls="recipe-filter-form"
+        aria-controls="recipe-filters"
         className={cn(
           "flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden",
           ssr && !isOpen && "ssr"
@@ -779,31 +799,15 @@ const FilterPanel: FC<{
         <h2 className="text-sm font-semibold text-foreground">Filter</h2>
       </div>
 
-      <Form
-        id="recipe-filter-form"
-        method="get"
-        action={recipesPath}
+      <search
+        id="recipe-filters"
+        aria-label="Filter recipes"
         className={cn(
           "border-t p-4 md:rounded-md md:border md:bg-card md:p-4 md:shadow-xs",
           !isOpen && "hidden md:block",
           ssr && "ssr"
         )}
       >
-        {queryText && <input type="hidden" name="q" value={queryText} />}
-        {sortBy !== DEFAULT_SORT && (
-          <input type="hidden" name="sort" value={sortBy} />
-        )}
-        {likedOnly && <input type="hidden" name="liked" value="1" />}
-        {minRating > 0 && (
-          <input type="hidden" name="minRating" value={String(minRating)} />
-        )}
-        {selectedTags.length > 0 && (
-          <input type="hidden" name="tags" value={selectedTags.join(",")} />
-        )}
-        {debugSsrParam !== null && (
-          <input type="hidden" name="debugSSR" value={debugSsrParam} />
-        )}
-
         <FieldGroup className="gap-5">
           <div
             className="flex items-center justify-between gap-3"
@@ -952,33 +956,33 @@ const FilterPanel: FC<{
             </div>
           )}
         </FieldGroup>
-      </Form>
+      </search>
     </div>
   );
 };
 
 const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
-  const [searchParams] = useSearchParams();
+  const activeSearchParams = useOptimisticRecipesSearchParams();
+  const location = useLocation();
   const submit = useSubmit();
-  const navigation = useNavigation();
   const recipesPath = href("/recipes");
-
-  const activeSearchParams =
-    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
-      ? new URLSearchParams(navigation.location.search)
-      : searchParams;
 
   const activeSort = parseSortParam(activeSearchParams.get("sort"));
 
   const handleSortChange = (nextSortValue: string) => {
     const nextSort = parseSortParam(nextSortValue);
-    const nextParams = new URLSearchParams(activeSearchParams);
+    const nextParams = getLatestCatalogSearchParams(
+      location.key,
+      activeSearchParams
+    );
     nextParams.delete("limit");
     if (nextSort !== DEFAULT_SORT) {
       nextParams.set("sort", nextSort);
     } else {
       nextParams.delete("sort");
     }
+    recordInFlightCatalogSearch(location.key, nextParams);
+    debounceSearchQuery = null;
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
@@ -1016,19 +1020,11 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
 };
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const {
-    recipes,
-    hasMore,
-    topTags,
-    ssr,
-    awaitingClientLikes,
-    likedResolvedForUid,
-  } = loaderData;
+  const { recipes, hasMore, topTags, ssr, likedResolvedForUid } = loaderData;
   const { user, authReady } = useAuthUser();
   const location = useLocation();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
-  const submit = useSubmit();
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -1049,25 +1045,14 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     activeMinRating > 0 ||
     activeTags.length > 0;
 
-  // Hydrate or clean up `?liked=1` when SSR deferred auth resolution (or if auth changes)
+  const currentUid = user?.uid ?? null;
+
+  // Hydrate or redirect `?liked=1` via clientLoader once browser Firebase Auth is ready
   useEffect(() => {
-    if (!activeLikedOnly || !authReady) {
-      return;
-    }
-    if (!user) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.delete("liked");
-      nextParams.delete("limit");
-      void submit(nextParams, {
-        method: "get",
-        action: recipesPath,
-        replace: true,
-        preventScrollReset: true,
-      });
-      return;
-    }
     if (
-      (awaitingClientLikes || likedResolvedForUid !== user.uid) &&
+      activeLikedOnly &&
+      authReady &&
+      (ssr || likedResolvedForUid !== currentUid) &&
       revalidator.state === "idle" &&
       navigation.state === "idle"
     ) {
@@ -1076,14 +1061,11 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   }, [
     activeLikedOnly,
     authReady,
-    user,
-    awaitingClientLikes,
+    ssr,
     likedResolvedForUid,
+    currentUid,
     revalidator,
     navigation.state,
-    searchParams,
-    submit,
-    recipesPath,
   ]);
 
   const newRecipesCount = usePendingNewRecipes(loaderData, {
@@ -1130,9 +1112,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const isSignedOut = authReady && !user;
   const isResolvingLikedCatalog =
     activeLikedOnly &&
-    (awaitingClientLikes ||
-      !authReady ||
-      (user !== null && likedResolvedForUid !== user.uid));
+    (!authReady || ssr || likedResolvedForUid !== currentUid);
 
   const countLabel = isResolvingLikedCatalog
     ? "…"
@@ -1246,6 +1226,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                     <Link
                       to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
                       state={returnState}
+                      prefetch="intent"
                     >
                       Generate a "{activeQueryText}" recipe
                     </Link>
@@ -1284,6 +1265,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                             recipeId: recipe.id,
                           })}
                           state={returnState}
+                          prefetch="intent"
                         >
                           {isSafeImageUrl(recipe.imageUri) && (
                             <ItemMedia className="size-16 rounded-md overflow-hidden border bg-muted shrink-0">
