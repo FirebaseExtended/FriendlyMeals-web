@@ -134,23 +134,18 @@
     font-variation-settings: "wdth" 100;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  [data-slot="button"]:not([data-variant="link"]),
-  [data-slot="card-title"] {
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-style: normal;
-    font-synthesis: none;
-    letter-spacing: 0.03em;
-  }
-
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-synthesis: none;
+  letter-spacing: 0.03em;
 }
 
 @layer components {

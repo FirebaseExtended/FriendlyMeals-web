@@ -249,7 +249,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
         )}
       >
         <div className="space-y-1.5">
-          <h1 className="text-3xl sm:text-4xl font-normal text-foreground">
+          <h1 className="font-display text-3xl sm:text-4xl font-normal text-foreground">
             {previewRecipe ? "Refine your recipe" : "What's in your kitchen?"}
           </h1>
           {!previewRecipe && (

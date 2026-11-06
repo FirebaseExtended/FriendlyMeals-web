@@ -741,9 +741,7 @@ const FilterPanel: FC<{
             aria-hidden="true"
             className="w-4 h-4 text-muted-foreground"
           />
-          <span className="font-display text-lg font-normal tracking-wide">
-            Filter
-          </span>
+          <span className="font-medium">Filter</span>
           {hasPanelFilters && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               Active
@@ -763,7 +761,7 @@ const FilterPanel: FC<{
           aria-hidden="true"
           className="w-4 h-4 text-muted-foreground"
         />
-        <h2 className="text-lg font-normal text-foreground">Filter</h2>
+        <h2 className="text-sm font-semibold text-foreground">Filter</h2>
       </div>
 
       <Form
@@ -1163,7 +1161,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         <div className="mb-3 flex items-center justify-between gap-3">
           <h1
             id="recipes-heading"
-            className="text-2xl font-normal text-foreground"
+            className="font-display text-2xl font-normal text-foreground"
           >
             Recipes{" "}
             <span className="font-serif text-sm font-normal tracking-normal text-muted-foreground tabular-nums">
@@ -1293,7 +1291,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                             >
                               <ItemTitle
                                 asChild
-                                className="mb-1 text-xl sm:text-[1.35rem] leading-snug font-normal text-foreground group-hover/item:text-primary transition-colors"
+                                className="mb-1.5 text-base font-semibold text-foreground group-hover/item:text-primary transition-colors"
                               >
                                 <h2>{recipe.title}</h2>
                               </ItemTitle>
@@ -1371,7 +1369,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       variant="outline"
                       disabled
                       className={cn(
-                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 text-base shadow-xs disabled:opacity-100",
+                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 shadow-xs disabled:opacity-100",
                         ssr && "ssr"
                       )}
                     >
@@ -1383,7 +1381,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       asChild
                       variant="outline"
                       className={cn(
-                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 text-base shadow-xs hover:border-primary/40 hover:bg-accent/50",
+                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 shadow-xs hover:border-primary/40 hover:bg-accent/50",
                         ssr && "ssr"
                       )}
                     >
