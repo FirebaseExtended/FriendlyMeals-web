@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { href, Link, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Database, Sparkles } from "lucide-react";
+import type { Route } from "./+types/generate";
 import { IngredientInput } from "@/components/IngredientInput";
 import RecipeDetail from "@/components/Recipe";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { generateStructuredJsonRecipe } from "@/firebase/firebaseAILogic";
 import {
+  getRecipeCount,
   publishRecipe,
   type NewRecipeInput,
   type Recipe,
@@ -15,6 +17,22 @@ import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
 import { useWasServerRendered } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
+
+const SEED_BUTTON_MAX_RECIPES = 15;
+
+export async function loader() {
+  const recipeCount = await getRecipeCount(SEED_BUTTON_MAX_RECIPES).catch(
+    () => SEED_BUTTON_MAX_RECIPES
+  );
+  return { showSeedButton: recipeCount < SEED_BUTTON_MAX_RECIPES };
+}
+
+export async function clientLoader() {
+  const recipeCount = await getRecipeCount(SEED_BUTTON_MAX_RECIPES).catch(
+    () => SEED_BUTTON_MAX_RECIPES
+  );
+  return { showSeedButton: recipeCount < SEED_BUTTON_MAX_RECIPES };
+}
 
 export function meta() {
   return [
@@ -81,15 +99,16 @@ function RecipeSkeleton() {
   );
 }
 
-export default function GeneratePage() {
+export default function GeneratePage({ loaderData }: Route.ComponentProps) {
   const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
   const [searchParams] = useSearchParams();
   const prefillIngredients = searchParams.get("ingredients")?.trim() ?? "";
 
   const [loadingMessage, setLoadingMessage] = useState<
-    "Generating recipe" | "Publishing recipe" | null
+    "Generating recipe" | "Publishing recipe" | "Seeding recipes" | null
   >(null);
+  const [hasSeeded, setHasSeeded] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<NewRecipeInput | null>(
     null
   );
@@ -103,13 +122,15 @@ export default function GeneratePage() {
 
   const isGenerating = loadingMessage === "Generating recipe";
   const isPublishing = loadingMessage === "Publishing recipe";
+  const isSeeding = loadingMessage === "Seeding recipes";
+  const isBusy = isGenerating || isPublishing || isSeeding;
 
   const handleGenerateRecipe = async (
     ingredients: string,
     cuisineType: string
   ) => {
     const trimmedIngredients = ingredients.trim();
-    if (!trimmedIngredients) {
+    if (!trimmedIngredients || isBusy) {
       return;
     }
 
@@ -132,12 +153,12 @@ export default function GeneratePage() {
   };
 
   const handleTryAgain = () => {
-    if (!lastPrompt || isGenerating || isPublishing) return;
+    if (!lastPrompt || isBusy) return;
     void handleGenerateRecipe(lastPrompt.ingredients, lastPrompt.cuisineType);
   };
 
   const handlePublish = async () => {
-    if (!generatedRecipe) return;
+    if (!generatedRecipe || isBusy) return;
 
     const uid = user?.uid ?? (await waitForAuthReady())?.uid;
     if (!uid) {
@@ -156,6 +177,33 @@ export default function GeneratePage() {
       reportClientError(error, { action: "publishRecipe" });
       setErrorMessage(
         "Couldn't publish your recipe right now. Please try again."
+      );
+      setLoadingMessage(null);
+    }
+  };
+
+  const handleSeedRecipes = async () => {
+    if (isBusy) return;
+
+    const uid = user?.uid ?? (await waitForAuthReady())?.uid;
+    if (!uid) {
+      navigate(
+        `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
+      );
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      setLoadingMessage("Seeding recipes");
+      const { seedSampleRecipes } = await import("@/firebase/seed");
+      await seedSampleRecipes(uid);
+      setHasSeeded(true);
+      navigate(href("/recipes"));
+    } catch (error) {
+      reportClientError(error, { action: "seedSampleRecipes" });
+      setErrorMessage(
+        "Couldn't seed sample recipes right now. Please try again."
       );
       setLoadingMessage(null);
     }
@@ -208,7 +256,7 @@ export default function GeneratePage() {
           key={prefillIngredients}
           initialIngredients={prefillIngredients}
           isLoading={isGenerating ? "Generating recipe" : false}
-          submitDisabled={!authReady || !user || isPublishing}
+          submitDisabled={!authReady || !user || isPublishing || isSeeding}
           hasPreview={Boolean(previewRecipe)}
           onCancelEdit={() => setIsInputExpanded(false)}
           ssr={isSsr}
@@ -250,7 +298,7 @@ export default function GeneratePage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={isGenerating || isPublishing}
+                  disabled={isBusy}
                   onClick={() => setIsInputExpanded(true)}
                   className="h-8 px-2.5 text-muted-foreground hover:text-foreground"
                 >
@@ -262,7 +310,7 @@ export default function GeneratePage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isGenerating || isPublishing}
+                  disabled={isBusy}
                   onClick={handleTryAgain}
                   className={cn(
                     "bg-card gap-1.5",
@@ -281,7 +329,7 @@ export default function GeneratePage() {
               )}
               <Button
                 onClick={handlePublish}
-                disabled={isGenerating || isPublishing}
+                disabled={isBusy}
                 size="sm"
                 className={cn("gap-1.5", isPublishing && "disabled:opacity-100")}
               >
@@ -311,6 +359,43 @@ export default function GeneratePage() {
           ) : (
             <RecipeDetail recipe={previewRecipe} readonly />
           )}
+        </div>
+      )}
+
+      {loaderData.showSeedButton && !hasSeeded && (
+        <div
+          className={cn(
+            "mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 text-xs text-muted-foreground",
+            isSsr && "ssr"
+          )}
+        >
+          <span>
+            Need sample data? Populate the cookbook with 20 starter recipes,
+            ratings, and likes.
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!authReady || !user || isBusy}
+            onClick={handleSeedRecipes}
+            className={cn(
+              "h-7 gap-1.5 px-2.5 text-xs bg-card",
+              isSeeding && "disabled:opacity-100"
+            )}
+          >
+            {isSeeding ? (
+              <>
+                <Spinner className="size-3" />
+                <span>Seeding recipes...</span>
+              </>
+            ) : (
+              <>
+                <Database className="size-3" />
+                <span>Seed 20 recipes</span>
+              </>
+            )}
+          </Button>
         </div>
       )}
     </div>

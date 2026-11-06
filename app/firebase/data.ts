@@ -74,6 +74,18 @@ export interface RecipeFilters {
 // Firestore Enterprise requires a named database ID (here "friendlymeals", matching firebase.json)
 export const db = getFirestore(firebaseApp, "friendlymeals");
 
+export async function getRecipeCount(maxCount = 50): Promise<number> {
+  const pipeline = db
+    .pipeline()
+    .collection("recipes")
+    .limit(maxCount)
+    .aggregate(countAll().as("count"));
+
+  const { results } = await execute(pipeline);
+  const count = results[0]?.data()?.count;
+  return typeof count === "number" ? count : 0;
+}
+
 export async function getTop5Tags(): Promise<string[]> {
   const pipeline = db
     .pipeline()

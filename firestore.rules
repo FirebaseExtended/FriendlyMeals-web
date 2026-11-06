@@ -20,16 +20,18 @@ rules_version = '2';
 //   - imageUri: string (optional, http/https URL <= 2048 chars)
 //
 // Subcollection: recipes/{recipeId}/reviews
-// Document ID: {userId} (deterministic one-review-per-user-per-recipe)
+// Document ID: {userId} (deterministic one-review-per-user-per-recipe;
+//              or `seed-review-NN` for sample `seed-*` recipes owned by authorId)
 // Public read: yes (aggregated in SSR/client pipelines; contains no PII)
 // Fields:
 //   - recipeId: string (required, immutable, matches parent {recipeId})
-//   - userId: string (required, immutable, matches request.auth.uid and {reviewId})
+//   - userId: string (required, immutable, matches request.auth.uid)
 //   - rating: number (required, 1..5)
 //   - text: string (required, 0..2000 chars)
 //
 // Collection: likes
-// Document ID: {recipeId}_{userId} (deterministic one-like-per-user-per-recipe)
+// Document ID: {recipeId}_{userId} (deterministic one-like-per-user-per-recipe;
+//              or `{recipeId}_seed_like_NN` for sample `seed-*` recipes owned by authorId)
 // Public read: yes (aggregated in SSR/client pipelines; contains no PII)
 // Fields:
 //   - recipeId: string (required, immutable, 1..128 chars)
@@ -136,12 +138,29 @@ service cloud.firestore {
         && isValidOptionalUrl('imageUri');
     }
 
+    function isSeedRecipeAuthor(recipeId) {
+      let recipeDoc = get(/databases/$(database)/documents/recipes/$(recipeId));
+      return isAuthenticated()
+        && recipeId.matches('^seed-[a-z0-9-]+$')
+        && recipeDoc != null
+        && recipeDoc.data.authorId == request.auth.uid;
+    }
+
+    function isSeedLikeId(likeId, recipeId) {
+      let prefix = recipeId + "_seed_like_";
+      return likeId.size() > prefix.size()
+        && likeId[0:prefix.size()] == prefix
+        && likeId[prefix.size():likeId.size()].matches('^[0-9]{2}$');
+    }
+
     function isValidReview(recipeId, reviewId) {
       return hasRequiredFields(['recipeId', 'userId', 'rating', 'text'])
         && hasOnlyAllowedFields(['recipeId', 'userId', 'rating', 'text'])
         && request.resource.data.recipeId == recipeId
         && request.resource.data.userId == request.auth.uid
-        && reviewId == request.auth.uid
+        && (reviewId == request.auth.uid
+            || (reviewId.matches('^seed-review-[0-9]{2}$')
+                && isSeedRecipeAuthor(recipeId)))
         && request.resource.data.rating is number
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5
@@ -149,11 +168,14 @@ service cloud.firestore {
     }
 
     function isValidLike(likeId) {
+      let recipeId = request.resource.data.recipeId;
       return hasRequiredFields(['userId', 'recipeId'])
         && hasOnlyAllowedFields(['userId', 'recipeId'])
         && validStringLength('recipeId', 1, 128)
         && request.resource.data.userId == request.auth.uid
-        && likeId == request.resource.data.recipeId + "_" + request.auth.uid;
+        && (likeId == recipeId + "_" + request.auth.uid
+            || (isSeedLikeId(likeId, recipeId)
+                && isSeedRecipeAuthor(recipeId)));
     }
 
     // ===============================================================
@@ -170,7 +192,8 @@ service cloud.firestore {
       match /reviews/{reviewId} {
         allow read: if true;
         allow create: if isAuthenticated()
-                      && exists(/databases/$(database)/documents/recipes/$(recipeId))
+                      && (reviewId != request.auth.uid
+                          || exists(/databases/$(database)/documents/recipes/$(recipeId)))
                       && isValidReview(recipeId, reviewId);
         allow update: if isOwner(resource.data.userId)
                       && request.resource.data.userId == resource.data.userId
@@ -189,7 +212,8 @@ service cloud.firestore {
     match /likes/{likeId} {
       allow read: if true;
       allow create: if isAuthenticated()
-                    && exists(/databases/$(database)/documents/recipes/$(request.resource.data.recipeId))
+                    && (likeId != request.resource.data.recipeId + "_" + request.auth.uid
+                        || exists(/databases/$(database)/documents/recipes/$(request.resource.data.recipeId)))
                     && isValidLike(likeId);
       allow update: if isOwner(resource.data.userId)
                     && request.resource.data.userId == resource.data.userId
