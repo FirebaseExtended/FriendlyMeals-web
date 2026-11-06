@@ -722,19 +722,17 @@ const FilterPanel: FC<{
   const activeRatingPreview = hoveredStar || minRating;
 
   return (
-    <div
-      className={cn(
-        "rounded-md border bg-card shadow-xs md:rounded-none md:border-0 md:bg-transparent md:shadow-none",
-        ssr && "ssr"
-      )}
-    >
+    <div className="rounded-md border bg-card shadow-xs md:rounded-none md:border-0 md:bg-transparent md:shadow-none">
       {/* Mobile collapsible trigger */}
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls="recipe-filter-form"
-        className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden"
+        className={cn(
+          "flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden",
+          ssr && !isOpen && "ssr"
+        )}
       >
         <div className="flex items-center gap-2">
           <SlidersHorizontal
@@ -769,8 +767,9 @@ const FilterPanel: FC<{
         method="get"
         action={recipesPath}
         className={cn(
-          "border-t p-4 md:border-t-0 md:p-0 md:pt-1",
-          !isOpen && "hidden md:block"
+          "border-t p-4 md:rounded-md md:border md:bg-card md:p-4 md:shadow-xs",
+          !isOpen && "hidden md:block",
+          ssr && "ssr"
         )}
       >
         {queryText && <input type="hidden" name="q" value={queryText} />}
@@ -925,7 +924,7 @@ const FilterPanel: FC<{
           )}
 
           {hasPanelFilters && (
-            <div className="flex justify-start border-t border-border/60 pt-3 md:border-t-0 md:pt-0">
+            <div className="flex justify-start border-t border-border/60 pt-3">
               <Link
                 to={resetHref}
                 replace
