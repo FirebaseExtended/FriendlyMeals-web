@@ -3,7 +3,6 @@ import {
   Form,
   href,
   NavigationType,
-  useLocation,
   useNavigation,
   useNavigationType,
   useSearchParams,
@@ -14,18 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DEFAULT_SORT,
-  getLatestCatalogSearchParams,
   isLikedFilterEnabled,
   parseSortParam,
-  recordInFlightCatalogSearch,
   useOptimisticRecipesSearchParams,
 } from "@/lib/recipes-catalog";
 import { cn } from "@/lib/utils";
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const [searchParams] = useSearchParams();
   const activeSearchParams = useOptimisticRecipesSearchParams();
-  const location = useLocation();
   const navigationType = useNavigationType();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -34,29 +32,30 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const urlQuery = searchParams.get("q") || "";
-  const [initialQuery] = useState(urlQuery);
-  const [hasText, setHasText] = useState(Boolean(urlQuery));
+  const [liveQuery, setLiveQuery] = useState(urlQuery);
 
-  // Sync uncontrolled input on Back/Forward ("POP") or external resets (e.g. header brand link)
-  useEffect(() => {
-    if (!location.key) return;
+  const syncFromUrl = useEffectEvent((nextUrlQuery: string) => {
     if (
       navigationType === NavigationType.Pop ||
       document.activeElement !== inputRef.current
     ) {
-      if (inputRef.current) {
-        inputRef.current.value = urlQuery;
-      }
-      setHasText(Boolean(urlQuery));
+      setLiveQuery(nextUrlQuery);
     }
-  }, [location.key, navigationType, urlQuery]);
+  });
 
-  const submitSearch = (nextValue: string, immediate = false) => {
+  // Sync controlled input on Back/Forward ("POP") or external resets (e.g. header brand link)
+  useEffect(() => {
+    syncFromUrl(urlQuery);
+  }, [urlQuery]);
+
+  const submitSearch = (nextValue: string, force = false) => {
     const trimmed = nextValue.trim();
-    const nextParams = getLatestCatalogSearchParams(
-      location.key,
-      activeSearchParams
-    );
+    const currentTargetQuery = (activeSearchParams.get("q") || "").trim();
+    if (!force && trimmed === currentTargetQuery) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(activeSearchParams);
     nextParams.delete("limit");
     if (trimmed) {
       nextParams.set("q", nextValue);
@@ -65,10 +64,6 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
     }
 
     const hadCommittedQuery = Boolean(searchParams.get("q"));
-    recordInFlightCatalogSearch(location.key, nextParams, {
-      debounce: !immediate,
-    });
-
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
@@ -77,25 +72,17 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
     });
   };
 
-  const onNativeSearchInput = useEffectEvent((nextValue: string) => {
-    setHasText(nextValue.length > 0);
+  const onDebouncedSearch = useEffectEvent((nextValue: string) => {
     submitSearch(nextValue);
   });
 
-  // Native input listener avoids dropped synthetic onChange events during React 19 <ViewTransition> snapshots
+  // Debounce live typing before committing `?q=` to the URL and querying Firestore
   useEffect(() => {
-    const el = inputRef.current;
-    if (!el) {
-      return;
-    }
-    const handleInput = () => {
-      onNativeSearchInput(el.value);
-    };
-    el.addEventListener("input", handleInput);
-    return () => {
-      el.removeEventListener("input", handleInput);
-    };
-  }, []);
+    const timer = setTimeout(() => {
+      onDebouncedSearch(liveQuery);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [liveQuery]);
 
   const isSearching =
     navigation.state !== "idle" &&
@@ -117,7 +104,7 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
       aria-label="Search recipes"
       onSubmit={(e) => {
         e.preventDefault();
-        submitSearch(inputRef.current?.value ?? "", true);
+        submitSearch(liveQuery, true);
       }}
       className="relative"
     >
@@ -148,22 +135,20 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         type="search"
         aria-label="Search recipes"
         placeholder="Search recipes by title, ingredient, or tag..."
-        defaultValue={initialQuery}
+        value={liveQuery}
+        onChange={(e) => setLiveQuery(e.target.value)}
         className={cn(
           "h-11 rounded-md bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden",
           ssr && "ssr"
         )}
       />
-      {hasText && (
+      {liveQuery.length > 0 && (
         <button
           type="button"
           onClick={() => {
-            if (inputRef.current) {
-              inputRef.current.value = "";
-              inputRef.current.focus();
-            }
-            setHasText(false);
+            setLiveQuery("");
             submitSearch("", true);
+            inputRef.current?.focus();
           }}
           aria-label="Clear search"
           className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"

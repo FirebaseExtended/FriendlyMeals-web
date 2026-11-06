@@ -1,11 +1,9 @@
 import type { FC } from "react";
-import { href, useLocation, useSubmit } from "react-router";
+import { href, useSubmit } from "react-router";
 import { Select } from "@/components/ui/select";
 import {
   DEFAULT_SORT,
-  getLatestCatalogSearchParams,
   parseSortParam,
-  recordInFlightCatalogSearch,
   SORT_OPTIONS,
   useOptimisticRecipesSearchParams,
 } from "@/lib/recipes-catalog";
@@ -13,7 +11,6 @@ import { cn } from "@/lib/utils";
 
 export const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
   const activeSearchParams = useOptimisticRecipesSearchParams();
-  const location = useLocation();
   const submit = useSubmit();
   const recipesPath = href("/recipes");
 
@@ -21,17 +18,13 @@ export const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
 
   const handleSortChange = (nextSortValue: string) => {
     const nextSort = parseSortParam(nextSortValue);
-    const nextParams = getLatestCatalogSearchParams(
-      location.key,
-      activeSearchParams
-    );
+    const nextParams = new URLSearchParams(activeSearchParams);
     nextParams.delete("limit");
     if (nextSort !== DEFAULT_SORT) {
       nextParams.set("sort", nextSort);
     } else {
       nextParams.delete("sort");
     }
-    recordInFlightCatalogSearch(location.key, nextParams);
     void submit(nextParams, {
       method: "get",
       action: recipesPath,

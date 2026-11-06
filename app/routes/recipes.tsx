@@ -38,8 +38,6 @@ import {
   type RecipesReturnState,
 } from "@/lib/navigation";
 import {
-  clearResolvedInFlightSearch,
-  consumeCatalogSearchDebounce,
   isLikedFilterEnabled,
   parseFiltersFromUrl,
   parseLimitParam,
@@ -50,8 +48,6 @@ import { cn } from "@/lib/utils";
 // Omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`
 const PUBLIC_RECIPES_CACHE_CONTROL =
   "public, max-age=60, stale-while-revalidate=300";
-
-const SEARCH_DEBOUNCE_MS = 300;
 
 export function headers({ loaderHeaders, errorHeaders }: Route.HeadersArgs) {
   if (errorHeaders) {
@@ -113,46 +109,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   );
 }
 
-function waitWithSignal(ms: number, signal: AbortSignal): Promise<boolean> {
-  if (signal.aborted) {
-    return Promise.resolve(false);
-  }
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      signal.removeEventListener("abort", onAbort);
-      resolve(true);
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve(false);
-    };
-    signal.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
 // Subsequent navigations and filter submissions run directly in the browser against Firestore
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const url = new URL(request.url);
-  const requestSearch = url.searchParams.toString();
-
-  if (consumeCatalogSearchDebounce(requestSearch)) {
-    const ready = await waitWithSignal(SEARCH_DEBOUNCE_MS, request.signal);
-    if (!ready) {
-      // Aborted by a newer keystroke or navigation; router discards this result via request.signal.aborted
-      return {
-        recipes: [],
-        hasMore: false,
-        topTags: [],
-        ssr: false,
-        likedResolvedForUid: null as string | null,
-      };
-    }
-  }
 
   if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
     const user = await waitForAuthReady();
     if (!user) {
-      clearResolvedInFlightSearch(requestSearch, request.signal.aborted);
       url.searchParams.delete("liked");
       url.searchParams.delete("limit");
       const fallbackQs = url.searchParams.toString();
@@ -161,7 +124,6 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
       );
     }
     const payload = await loadRecipesCatalog(request, user.uid);
-    clearResolvedInFlightSearch(requestSearch, request.signal.aborted);
     return {
       ...payload,
       ssr: false,
@@ -170,7 +132,6 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   }
 
   const payload = await loadRecipesCatalog(request);
-  clearResolvedInFlightSearch(requestSearch, request.signal.aborted);
   return {
     ...payload,
     ssr: false,

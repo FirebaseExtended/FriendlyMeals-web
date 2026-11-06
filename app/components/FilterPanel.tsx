@@ -1,5 +1,5 @@
 import { useState, type FC } from "react";
-import { href, Link, useLocation, useSubmit } from "react-router";
+import { href, Link, useSubmit } from "react-router";
 import {
   ChevronDown,
   ChevronUp,
@@ -11,10 +11,8 @@ import {
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
   DEFAULT_SORT,
-  getLatestCatalogSearchParams,
   isLikedFilterEnabled,
   parseSortParam,
-  recordInFlightCatalogSearch,
   useOptimisticRecipesSearchParams,
 } from "@/lib/recipes-catalog";
 import { cn } from "@/lib/utils";
@@ -37,7 +35,6 @@ export const FilterPanel: FC<FilterPanelProps> = ({
   ssr,
 }) => {
   const activeSearchParams = useOptimisticRecipesSearchParams();
-  const location = useLocation();
   const submit = useSubmit();
   const recipesPath = href("/recipes");
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -55,10 +52,7 @@ export const FilterPanel: FC<FilterPanelProps> = ({
     minRating?: number;
     tags?: string[];
   }) => {
-    const nextParams = getLatestCatalogSearchParams(
-      location.key,
-      activeSearchParams
-    );
+    const nextParams = new URLSearchParams(activeSearchParams);
     nextParams.delete("limit");
 
     if (updates.liked !== undefined) {
@@ -84,8 +78,6 @@ export const FilterPanel: FC<FilterPanelProps> = ({
         nextParams.delete("tags");
       }
     }
-
-    recordInFlightCatalogSearch(location.key, nextParams);
 
     void submit(nextParams, {
       method: "get",
