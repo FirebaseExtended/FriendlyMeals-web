@@ -31,31 +31,32 @@ const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
             <span>Friendly Meals</span>
           </Link>
 
-          {!authReady ? (
+          {onLogin ? (
             <div aria-hidden="true" className="h-8 w-28" />
+          ) : onGenerate ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="w-28 gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <Link to={href("/recipes")}>
+                <ArrowLeft className="size-4" />
+                <span>Recipes</span>
+              </Link>
+            </Button>
+          ) : !authReady ? (
+            <Button type="button" size="sm" disabled className="w-28 gap-1.5">
+              <Sparkles className="size-3.5" />
+              <span>Generate</span>
+            </Button>
           ) : user ? (
-            onGenerate ? (
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="w-28 gap-1.5 text-muted-foreground hover:text-foreground"
-              >
-                <Link to={href("/recipes")}>
-                  <ArrowLeft className="size-4" />
-                  <span>Recipes</span>
-                </Link>
-              </Button>
-            ) : (
-              <Button asChild size="sm" className="w-28 gap-1.5">
-                <Link to={href("/generate")}>
-                  <Sparkles className="size-3.5" />
-                  <span>Generate</span>
-                </Link>
-              </Button>
-            )
-          ) : onLogin ? (
-            <div aria-hidden="true" className="h-8 w-28" />
+            <Button asChild size="sm" className="w-28 gap-1.5">
+              <Link to={href("/generate")}>
+                <Sparkles className="size-3.5" />
+                <span>Generate</span>
+              </Link>
+            </Button>
           ) : (
             <Button asChild variant="outline" size="sm" className="w-28">
               <Link to={href("/login")}>Sign in</Link>
