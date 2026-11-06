@@ -18,6 +18,7 @@ rules_version = '2';
 //   - servings: string (required, 1..100 chars)
 //   - authorId: string (required, immutable, matches request.auth.uid)
 //   - imageUri: string (optional, http/https URL <= 2048 chars)
+//   - createdAt: timestamp (optional, recipe creation timestamp)
 //
 // Subcollection: recipes/{recipeId}/reviews
 // Document ID: {userId} (deterministic one-review-per-user-per-recipe;
@@ -74,6 +75,11 @@ service cloud.firestore {
                 || request.resource.data[field].matches("^http://.*")));
     }
 
+    function isValidOptionalTimestamp(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] is timestamp;
+    }
+
     // Validate element types/bounds for small tag lists (up to first 5 checked explicitly + list bound)
     function isValidBoundedList(field, maxLen) {
       return request.resource.data[field] is list
@@ -125,7 +131,8 @@ service cloud.firestore {
           'cookTime',
           'servings',
           'authorId',
-          'imageUri'
+          'imageUri',
+          'createdAt'
         ])
         && validStringLength('title', 1, 200)
         && isValidInstructionsList('instructions', 50)
@@ -135,7 +142,8 @@ service cloud.firestore {
         && validStringLength('authorId', 1, 128)
         && isValidBoundedList('ingredients', 100)
         && isValidBoundedList('tags', 20)
-        && isValidOptionalUrl('imageUri');
+        && isValidOptionalUrl('imageUri')
+        && isValidOptionalTimestamp('createdAt');
     }
 
     function isSeedRecipeAuthor(recipeId) {

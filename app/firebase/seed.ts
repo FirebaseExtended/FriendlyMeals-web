@@ -1,4 +1,4 @@
-import { doc, getDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { db, type NewRecipeInput } from "./data";
 
 interface SeedReviewSpec {
@@ -1058,13 +1058,19 @@ export async function seedSampleRecipes(userId: string): Promise<number> {
     SEED_RECIPES.map((entry) => resolveSeedRecipeId(entry.slug, userId))
   );
 
-  // 1. Write all 20 recipe documents first so `exists` / `get` rules succeed on engagement writes
+  // 1. Write all 20 recipe documents first so `exists` / `get` rules succeed on engagement writes.
+  // Stagger `createdAt` across 3..22 days ago in a non-alphabetical order so "Newest" and
+  // "Alphabetical" sorts look genuinely distinct while keeping freshly published recipes on top.
+  const nowMs = Date.now();
+  const dayMs = 86_400_000;
   const recipeBatch = writeBatch(db);
   SEED_RECIPES.forEach((entry, idx) => {
     const recipeId = resolvedIds[idx];
+    const daysAgo = ((idx * 7 + 3) % SEED_RECIPES.length) + 3;
     recipeBatch.set(doc(db, "recipes", recipeId), {
       ...entry.recipe,
       authorId: userId,
+      createdAt: Timestamp.fromMillis(nowMs - daysAgo * dayMs),
     });
   });
   await recipeBatch.commit();

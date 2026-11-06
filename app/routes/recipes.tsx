@@ -80,10 +80,12 @@ function isSafeImageUrl(url: string | undefined): url is string {
   );
 }
 
-const DEFAULT_SORT: RecipeSort = "title";
+const DEFAULT_SORT: RecipeSort = "newest";
 
 function parseSortParam(raw: string | null): RecipeSort {
-  return raw === "rating" || raw === "likes" ? raw : DEFAULT_SORT;
+  return raw === "title" || raw === "rating" || raw === "likes"
+    ? raw
+    : DEFAULT_SORT;
 }
 
 function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
@@ -282,6 +284,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
 };
 
 const SORT_OPTIONS: ReadonlyArray<{ value: RecipeSort; label: string }> = [
+  { value: "newest", label: "Newest" },
   { value: "title", label: "Alphabetical" },
   { value: "rating", label: "Rating" },
   { value: "likes", label: "Likes" },

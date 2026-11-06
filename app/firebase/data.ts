@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getFirestore,
+  serverTimestamp,
   setDoc,
 } from "firebase/firestore";
 import {
@@ -62,7 +63,7 @@ export type NewRecipeInput = Omit<
   "id" | "authorId" | "averageRating" | "likes"
 >;
 
-export type RecipeSort = "title" | "rating" | "likes";
+export type RecipeSort = "newest" | "title" | "rating" | "likes";
 
 export interface RecipeFilters {
   searchTerm?: string;
@@ -104,6 +105,15 @@ export async function getTop5Tags(): Promise<string[]> {
     .filter((tag): tag is string => typeof tag === "string" && tag.length > 0);
 }
 
+function toPlainRecipe(id: string, raw: Record<string, unknown>): Recipe {
+  const { createdAt: _createdAt, ...rest } = raw;
+  void _createdAt;
+  return {
+    ...(rest as Omit<Recipe, "id">),
+    id,
+  };
+}
+
 export async function publishRecipe(
   userId: string,
   recipe: NewRecipeInput
@@ -112,6 +122,7 @@ export async function publishRecipe(
     ...recipe,
     tags: recipe.tags ?? [],
     authorId: userId,
+    createdAt: serverTimestamp(),
   });
   return recipeRef.id;
 }
@@ -145,10 +156,7 @@ export async function getRecipe(recipeId: string): Promise<Recipe | null> {
     return null;
   }
 
-  return {
-    ...raw,
-    id: result.id,
-  } as Recipe;
+  return toPlainRecipe(result.id, raw);
 }
 
 export async function deleteRecipe(recipeId: string): Promise<void> {
@@ -248,6 +256,9 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
   }
 
   switch (filters.sort) {
+    case "title":
+      pipeline = pipeline.sort(field("title").ascending());
+      break;
     case "rating":
       pipeline = pipeline.sort(
         field("averageRating").descending(),
@@ -260,16 +271,19 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
         field("title").ascending()
       );
       break;
-    case "title":
+    case "newest":
     default:
-      pipeline = pipeline.sort(field("title").ascending());
+      pipeline = pipeline.sort(
+        field("createdAt").coalesce(field("__create_time__")).descending(),
+        field("title").ascending()
+      );
       break;
   }
 
   pipeline = pipeline.limit(50);
 
   const { results } = await execute(pipeline);
-  return results.map((result) => ({ ...result.data(), id: result.id }) as Recipe);
+  return results.map((result) => toPlainRecipe(result.id, result.data()));
 }
 
 export function formatRecipeMarkdown(recipe: Recipe): string {
