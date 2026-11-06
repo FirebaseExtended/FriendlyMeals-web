@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, ViewTransition, type FC } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  ViewTransition,
+  type FC,
+} from "react";
 import {
   data,
   Form,
@@ -224,15 +231,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
-let debounceCatalogUntil = 0;
-
-function setSearchDebouncePending(pending: boolean) {
-  debounceCatalogUntil = pending ? Date.now() + 100 : 0;
-}
+let debounceNextSearchLoad = false;
 
 function consumeSearchDebounce(): boolean {
-  const shouldDebounce = Date.now() < debounceCatalogUntil;
-  debounceCatalogUntil = 0;
+  const shouldDebounce = debounceNextSearchLoad;
+  debounceNextSearchLoad = false;
   return shouldDebounce;
 }
 
@@ -528,7 +531,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
     }
 
     const hadCommittedQuery = Boolean(searchParams.get("q"));
-    setSearchDebouncePending(!immediate);
+    debounceNextSearchLoad = !immediate;
 
     void submit(nextParams, {
       method: "get",
@@ -538,6 +541,26 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
       state: { isSearchSubmission: true } satisfies SearchLocationState,
     });
   };
+
+  const onNativeSearchInput = useEffectEvent((nextValue: string) => {
+    setHasText(nextValue.length > 0);
+    submitSearch(nextValue);
+  });
+
+  // Native input listener avoids dropped synthetic onChange events during React 19 <ViewTransition> snapshots
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) {
+      return;
+    }
+    const handleInput = () => {
+      onNativeSearchInput(el.value);
+    };
+    el.addEventListener("input", handleInput);
+    return () => {
+      el.removeEventListener("input", handleInput);
+    };
+  }, []);
 
   const isSearching =
     navigation.state !== "idle" &&
@@ -590,11 +613,6 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         aria-label="Search recipes"
         placeholder="Search recipes by title, ingredient, or tag..."
         defaultValue={initialQuery}
-        onChange={(e) => {
-          const next = e.target.value;
-          setHasText(next.length > 0);
-          submitSearch(next);
-        }}
         className={cn(
           "h-11 rounded-md bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden",
           ssr && "ssr"
@@ -694,7 +712,6 @@ const FilterPanel: FC<{
       }
     }
 
-    setSearchDebouncePending(false);
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
@@ -962,7 +979,6 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
     } else {
       nextParams.delete("sort");
     }
-    setSearchDebouncePending(false);
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
@@ -1042,7 +1058,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("liked");
       nextParams.delete("limit");
-      setSearchDebouncePending(false);
       void submit(nextParams, {
         method: "get",
         action: recipesPath,
@@ -1056,7 +1071,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       revalidator.state === "idle" &&
       navigation.state === "idle"
     ) {
-      setSearchDebouncePending(false);
       void revalidator.revalidate();
     }
   }, [
@@ -1080,7 +1094,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   });
   const isRefreshingNew = revalidator.state === "loading";
   const handleShowNew = () => {
-    setSearchDebouncePending(false);
     void revalidator.revalidate();
   };
 
@@ -1371,12 +1384,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                         ssr && "ssr"
                       )}
                     >
-                      <Link
-                        to={showMoreHref}
-                        replace
-                        preventScrollReset
-                        onClick={() => setSearchDebouncePending(false)}
-                      >
+                      <Link to={showMoreHref} replace preventScrollReset>
                         Show more recipes
                       </Link>
                     </Button>
