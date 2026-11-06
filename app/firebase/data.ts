@@ -13,6 +13,7 @@ import {
 import {
   and,
   average,
+  concat,
   countAll,
   documentId,
   execute,
@@ -256,10 +257,10 @@ export function doesPreviewMatchFilters(
   }
 
   if (filters.tags && filters.tags.length > 0) {
-    const hasMatchingTag = preview.tags.some((tag) =>
-      filters.tags?.includes(tag)
+    const hasAllSelectedTags = filters.tags.every((tag) =>
+      preview.tags.includes(tag)
     );
-    if (!hasMatchingTag) {
+    if (!hasAllSelectedTags) {
       return false;
     }
   }
@@ -341,6 +342,8 @@ export async function queryRecipes(
     .define(documentId(field("__name__")).as("parentRecipeId"));
 
   if (filters.likedByUserId) {
+    // Match deterministic `{recipeId}_{userId}` user-like doc IDs so synthetic
+    // `{recipeId}_seed_like_NN` engagement rows written by the seeder are excluded.
     pipeline = pipeline.where(
       db
         .pipeline()
@@ -348,7 +351,10 @@ export async function queryRecipes(
         .where(
           and(
             field("recipeId").equal(variable("parentRecipeId")),
-            field("userId").equal(filters.likedByUserId)
+            field("userId").equal(filters.likedByUserId),
+            documentId(field("__name__")).equal(
+              concat(variable("parentRecipeId"), "_", filters.likedByUserId)
+            )
           )
         )
         .limit(1)
@@ -396,7 +402,7 @@ export async function queryRecipes(
   }
 
   if (filters.tags && filters.tags.length > 0) {
-    pipeline = pipeline.where(field("tags").arrayContainsAny(filters.tags));
+    pipeline = pipeline.where(field("tags").arrayContainsAll(filters.tags));
   }
 
   switch (filters.sort) {
