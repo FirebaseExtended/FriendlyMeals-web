@@ -28,6 +28,7 @@ function isSafeImageUrl(url: string | undefined): url is string {
 interface RecipeDetailProps {
   recipe: Recipe;
   isLiked?: boolean;
+  likeStateReady?: boolean;
   readonly?: boolean;
   ssr?: boolean;
 }
@@ -35,14 +36,17 @@ interface RecipeDetailProps {
 const RecipeDetail: FC<RecipeDetailProps> = ({
   recipe,
   isLiked = false,
+  likeStateReady = true,
   readonly = false,
   ssr = false,
 }) => {
   const navigate = useNavigate();
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
-  const { user } = useAuthUser();
+  const { user, authReady } = useAuthUser();
   const { backHref, recipesSearch } = useBackToRecipesHref();
   const [hoveredStar, setHoveredStar] = useState(0);
+
+  const isLikeDisabled = !authReady || !likeStateReady;
 
   const pendingIntent = fetcher.formData?.get("intent");
 
@@ -73,7 +77,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   };
 
   const handleLikeToggle = () => {
-    if (readonly) return;
+    if (readonly || isLikeDisabled) return;
     if (!user) {
       redirectToSignIn();
       return;
@@ -190,6 +194,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={isLikeDisabled}
                   aria-pressed={optimisticLiked}
                   aria-label={`Like recipe (${optimisticLikesCount} ${optimisticLikesCount === 1 ? "like" : "likes"})`}
                   onClick={handleLikeToggle}

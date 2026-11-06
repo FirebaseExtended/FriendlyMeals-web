@@ -191,5 +191,19 @@ export default function RecipePage({ loaderData }: Route.ComponentProps) {
           ? clientLikedLookup.liked
           : isLiked;
 
-  return <RecipeDetail recipe={recipe} isLiked={resolvedIsLiked} ssr={ssr} />;
+  const isLikeStateReady =
+    authReady &&
+    (!user ||
+      checkedLikesForUid === user.uid ||
+      (clientLikedLookup?.recipeId === recipe.id &&
+        clientLikedLookup.uid === user.uid));
+
+  return (
+    <RecipeDetail
+      recipe={recipe}
+      isLiked={resolvedIsLiked}
+      likeStateReady={isLikeStateReady}
+      ssr={ssr}
+    />
+  );
 }

@@ -11,6 +11,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import {
+  and,
   average,
   countAll,
   documentId,
@@ -75,6 +76,7 @@ export interface RecipeFilters {
   searchTerm?: string;
   minRating?: number;
   tags?: string[];
+  likedByUserId?: string;
   sort?: RecipeSort;
   limit?: number;
 }
@@ -253,8 +255,15 @@ function toLiveRecipePreview(
 
 export function doesPreviewMatchFilters(
   preview: LiveRecipePreview,
-  filters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating">
+  filters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating"> & {
+    likedOnly?: boolean;
+  }
 ): boolean {
+  if (filters.likedOnly) {
+    // Newly published recipes haven't been liked by the current user yet
+    return false;
+  }
+
   if (filters.minRating && filters.minRating > 0) {
     // Newly published recipes start with 0 ratings until reviewed
     return false;
@@ -343,22 +352,42 @@ export async function queryRecipes(
   let pipeline = db
     .pipeline()
     .collection("recipes")
-    .define(documentId(field("__name__")).as("parentRecipeId"))
-    .addFields(
-      subcollection("reviews")
-        .aggregate(average("rating").as("avg"))
-        .toScalarExpression()
-        .coalesce(0)
-        .as("averageRating"),
+    .define(documentId(field("__name__")).as("parentRecipeId"));
+
+  if (filters.likedByUserId) {
+    pipeline = pipeline.where(
       db
         .pipeline()
         .collection("likes")
-        .where(field("recipeId").equal(variable("parentRecipeId")))
-        .aggregate(countAll().as("count"))
+        .where(
+          and(
+            field("recipeId").equal(variable("parentRecipeId")),
+            field("userId").equal(filters.likedByUserId)
+          )
+        )
+        .limit(1)
+        .aggregate(countAll().as("liked"))
         .toScalarExpression()
         .coalesce(0)
-        .as("likes")
+        .greaterThan(0)
     );
+  }
+
+  pipeline = pipeline.addFields(
+    subcollection("reviews")
+      .aggregate(average("rating").as("avg"))
+      .toScalarExpression()
+      .coalesce(0)
+      .as("averageRating"),
+    db
+      .pipeline()
+      .collection("likes")
+      .where(field("recipeId").equal(variable("parentRecipeId")))
+      .aggregate(countAll().as("count"))
+      .toScalarExpression()
+      .coalesce(0)
+      .as("likes")
+  );
 
   const trimmedSearch = filters.searchTerm?.trim().toLowerCase();
   if (trimmedSearch) {

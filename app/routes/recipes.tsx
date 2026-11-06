@@ -4,6 +4,7 @@ import {
   Form,
   href,
   Link,
+  redirect,
   useLocation,
   useNavigation,
   useRevalidator,
@@ -16,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Heart,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -23,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import type { Route } from "./+types/recipes";
+import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import {
   DEFAULT_RECIPES_LIMIT,
   doesPreviewMatchFilters,
@@ -151,7 +154,14 @@ function parseLimitParam(raw: string | null): number {
   return Math.min(MAX_RECIPES_LIMIT, Math.floor(parsed));
 }
 
-function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
+function isLikedFilterEnabled(raw: string | null): boolean {
+  return raw === "1" || raw === "true";
+}
+
+function parseFiltersFromUrl(
+  requestUrl: string,
+  likedByUserId?: string
+): RecipeFilters {
   const url = new URL(requestUrl);
   const rawMinRating = Number(url.searchParams.get("minRating"));
   const rawTags = url.searchParams.get("tags");
@@ -163,13 +173,14 @@ function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
         ? rawMinRating
         : undefined,
     tags: rawTags ? rawTags.split(",").filter(Boolean) : undefined,
+    likedByUserId,
     sort: parseSortParam(url.searchParams.get("sort")),
     limit: parseLimitParam(url.searchParams.get("limit")),
   };
 }
 
-async function loadRecipesCatalog(request: Request) {
-  const filters = parseFiltersFromUrl(request.url);
+async function loadRecipesCatalog(request: Request, likedByUserId?: string) {
+  const filters = parseFiltersFromUrl(request.url, likedByUserId);
   const [{ recipes, hasMore }, topTags] = await Promise.all([
     queryRecipes(filters),
     getTop5Tags(),
@@ -179,9 +190,33 @@ async function loadRecipesCatalog(request: Request) {
 
 // Initial HTML request renders on Cloud Run so search engines and agents get full HTML
 export async function loader({ request }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
+    // Firebase Auth lives in browser IndexedDB; defer liked-recipes resolution to hydration
+    const topTags = await getTop5Tags();
+    return data(
+      {
+        recipes: [] as Recipe[],
+        hasMore: false,
+        topTags,
+        ssr: true,
+        awaitingClientLikes: true,
+        likedResolvedForUid: null as string | null,
+      },
+      {
+        headers: { "Cache-Control": "private, no-store" },
+      }
+    );
+  }
+
   const payload = await loadRecipesCatalog(request);
   return data(
-    { ...payload, ssr: true },
+    {
+      ...payload,
+      ssr: true,
+      awaitingClientLikes: false,
+      likedResolvedForUid: null as string | null,
+    },
     {
       headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
     }
@@ -224,12 +259,44 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     const ready = await waitWithSignal(SEARCH_DEBOUNCE_MS, request.signal);
     if (!ready) {
       // Aborted by a newer keystroke or navigation; router discards this result via request.signal.aborted
-      return { recipes: [], hasMore: false, topTags: [], ssr: false };
+      return {
+        recipes: [],
+        hasMore: false,
+        topTags: [],
+        ssr: false,
+        awaitingClientLikes: false,
+        likedResolvedForUid: null as string | null,
+      };
     }
   }
 
+  const url = new URL(request.url);
+  if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
+    const user = await waitForAuthReady();
+    if (!user) {
+      url.searchParams.delete("liked");
+      url.searchParams.delete("limit");
+      const fallbackQs = url.searchParams.toString();
+      throw redirect(
+        fallbackQs ? `${href("/recipes")}?${fallbackQs}` : href("/recipes")
+      );
+    }
+    const payload = await loadRecipesCatalog(request, user.uid);
+    return {
+      ...payload,
+      ssr: false,
+      awaitingClientLikes: false,
+      likedResolvedForUid: user.uid,
+    };
+  }
+
   const payload = await loadRecipesCatalog(request);
-  return { ...payload, ssr: false };
+  return {
+    ...payload,
+    ssr: false,
+    awaitingClientLikes: false,
+    likedResolvedForUid: null as string | null,
+  };
 }
 
 const NewRecipesBanner: FC<{
@@ -278,7 +345,9 @@ interface PendingRecipeEntry {
 
 function usePendingNewRecipes(
   loaderData: Route.ComponentProps["loaderData"],
-  activeFilters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating">
+  activeFilters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating"> & {
+    likedOnly?: boolean;
+  }
 ): number {
   const latestLoaderDataRef = useRef(loaderData);
   const baselineIdsRef = useRef<Set<string>>(
@@ -478,6 +547,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
 
   const minRatingParam = activeSearchParams.get("minRating");
   const tagsParam = activeSearchParams.get("tags");
+  const likedOnlyParam = isLikedFilterEnabled(activeSearchParams.get("liked"));
   const sortParam = parseSortParam(activeSearchParams.get("sort"));
   const debugSsrParam = activeSearchParams.get("debugSSR");
 
@@ -496,6 +566,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         <input type="hidden" name="minRating" value={minRatingParam} />
       )}
       {tagsParam && <input type="hidden" name="tags" value={tagsParam} />}
+      {likedOnlyParam && <input type="hidden" name="liked" value="1" />}
       {sortParam !== DEFAULT_SORT && (
         <input type="hidden" name="sort" value={sortParam} />
       )}
@@ -561,8 +632,17 @@ const FilterPanel: FC<{
   isOpen: boolean;
   onToggle: () => void;
   availableTags: string[];
+  canFilterByLikes: boolean;
+  isSignedOut: boolean;
   ssr: boolean;
-}> = ({ isOpen, onToggle, availableTags, ssr }) => {
+}> = ({
+  isOpen,
+  onToggle,
+  availableTags,
+  canFilterByLikes,
+  isSignedOut,
+  ssr,
+}) => {
   const [searchParams] = useSearchParams();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -576,16 +656,27 @@ const FilterPanel: FC<{
 
   const queryText = activeSearchParams.get("q") || "";
   const sortBy = parseSortParam(activeSearchParams.get("sort"));
+  const likedOnly = isLikedFilterEnabled(activeSearchParams.get("liked"));
+  const isMyLikesChecked = canFilterByLikes && likedOnly;
   const selectedTags =
     activeSearchParams.get("tags")?.split(",").filter(Boolean) || [];
   const minRating = Number(activeSearchParams.get("minRating")) || 0;
 
   const submitFilterUpdates = (updates: {
+    liked?: boolean;
     minRating?: number;
     tags?: string[];
   }) => {
     const nextParams = new URLSearchParams(activeSearchParams);
     nextParams.delete("limit");
+
+    if (updates.liked !== undefined) {
+      if (updates.liked) {
+        nextParams.set("liked", "1");
+      } else {
+        nextParams.delete("liked");
+      }
+    }
 
     if (updates.minRating !== undefined) {
       if (updates.minRating > 0) {
@@ -612,7 +703,7 @@ const FilterPanel: FC<{
     });
   };
 
-  const hasPanelFilters = minRating > 0 || selectedTags.length > 0;
+  const hasPanelFilters = likedOnly || minRating > 0 || selectedTags.length > 0;
   const debugSsrParam = activeSearchParams.get("debugSSR");
 
   const resetParams = new URLSearchParams();
@@ -688,6 +779,7 @@ const FilterPanel: FC<{
         {sortBy !== DEFAULT_SORT && (
           <input type="hidden" name="sort" value={sortBy} />
         )}
+        {likedOnly && <input type="hidden" name="liked" value="1" />}
         {minRating > 0 && (
           <input type="hidden" name="minRating" value={String(minRating)} />
         )}
@@ -699,6 +791,58 @@ const FilterPanel: FC<{
         )}
 
         <FieldGroup className="gap-5">
+          <div
+            className="flex items-center justify-between gap-3"
+            title={
+              isSignedOut
+                ? "Sign in to filter by your liked recipes"
+                : undefined
+            }
+          >
+            <label
+              id="my-likes-filter-label"
+              htmlFor="my-likes-switch"
+              className={cn(
+                "inline-flex items-center gap-2 text-sm font-medium leading-snug select-none",
+                canFilterByLikes
+                  ? "cursor-pointer text-foreground"
+                  : "cursor-not-allowed text-muted-foreground"
+              )}
+            >
+              <Heart
+                aria-hidden="true"
+                className={cn(
+                  "size-4 transition-colors",
+                  isMyLikesChecked
+                    ? "fill-rose-500 text-rose-500"
+                    : "text-muted-foreground"
+                )}
+              />
+              <span>My likes</span>
+            </label>
+            <button
+              id="my-likes-switch"
+              type="button"
+              role="switch"
+              aria-checked={isMyLikesChecked}
+              aria-labelledby="my-likes-filter-label"
+              disabled={!canFilterByLikes}
+              onClick={() => submitFilterUpdates({ liked: !likedOnly })}
+              className={cn(
+                "inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+                isMyLikesChecked ? "bg-primary" : "bg-input"
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none block size-4 rounded-full bg-background shadow-xs ring-0 transition-transform",
+                  isMyLikesChecked ? "translate-x-4" : "translate-x-0"
+                )}
+              />
+            </button>
+          </div>
+
           <FieldSet className="gap-0">
             <FieldLegend variant="label" className="leading-snug">
               Minimum Rating
@@ -859,10 +1003,19 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
 };
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const { recipes, hasMore, topTags, ssr } = loaderData;
+  const {
+    recipes,
+    hasMore,
+    topTags,
+    ssr,
+    awaitingClientLikes,
+    likedResolvedForUid,
+  } = loaderData;
+  const { user, authReady } = useAuthUser();
   const location = useLocation();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  const submit = useSubmit();
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -874,15 +1027,59 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const returnState = buildRecipesReturnState(currentCatalogSearch);
 
   const activeQueryText = searchParams.get("q")?.trim() || "";
+  const activeLikedOnly = isLikedFilterEnabled(searchParams.get("liked"));
   const activeMinRating = Number(searchParams.get("minRating")) || 0;
   const activeTags = searchParams.get("tags")?.split(",").filter(Boolean) || [];
   const hasFilters =
-    Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
+    activeLikedOnly ||
+    Boolean(activeQueryText) ||
+    activeMinRating > 0 ||
+    activeTags.length > 0;
+
+  // Hydrate or clean up `?liked=1` when SSR deferred auth resolution (or if auth changes)
+  useEffect(() => {
+    if (!activeLikedOnly || !authReady) {
+      return;
+    }
+    if (!user) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("liked");
+      nextParams.delete("limit");
+      setSearchDebouncePending(false);
+      void submit(nextParams, {
+        method: "get",
+        action: recipesPath,
+        replace: true,
+        preventScrollReset: true,
+      });
+      return;
+    }
+    if (
+      (awaitingClientLikes || likedResolvedForUid !== user.uid) &&
+      revalidator.state === "idle" &&
+      navigation.state === "idle"
+    ) {
+      setSearchDebouncePending(false);
+      void revalidator.revalidate();
+    }
+  }, [
+    activeLikedOnly,
+    authReady,
+    user,
+    awaitingClientLikes,
+    likedResolvedForUid,
+    revalidator,
+    navigation.state,
+    searchParams,
+    submit,
+    recipesPath,
+  ]);
 
   const newRecipesCount = usePendingNewRecipes(loaderData, {
     searchTerm: activeQueryText || undefined,
     minRating: activeMinRating > 0 ? activeMinRating : undefined,
     tags: activeTags.length > 0 ? activeTags : undefined,
+    likedOnly: activeLikedOnly,
   });
   const isRefreshingNew = revalidator.state === "loading";
   const handleShowNew = () => {
@@ -919,7 +1116,25 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       new URLSearchParams(navigation.location.search).get("limit")
     ) > currentLimit;
 
-  const countLabel = hasMore ? `${recipes.length}+` : String(recipes.length);
+  const canFilterByLikes = authReady && Boolean(user);
+  const isSignedOut = authReady && !user;
+  const isResolvingLikedCatalog =
+    activeLikedOnly &&
+    (awaitingClientLikes ||
+      !authReady ||
+      (user !== null && likedResolvedForUid !== user.uid));
+
+  const countLabel = isResolvingLikedCatalog
+    ? "…"
+    : hasMore
+      ? `${recipes.length}+`
+      : String(recipes.length);
+
+  const isEmptyLikedOnly =
+    activeLikedOnly &&
+    !activeQueryText &&
+    activeMinRating === 0 &&
+    activeTags.length === 0;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4">
@@ -935,6 +1150,8 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           isOpen={filterOpen}
           onToggle={() => setFilterOpen(!filterOpen)}
           availableTags={topTags}
+          canFilterByLikes={canFilterByLikes}
+          isSignedOut={isSignedOut}
           ssr={ssr}
         />
       </aside>
@@ -963,7 +1180,19 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           onShow={handleShowNew}
         />
 
-        {!recipes || recipes.length === 0 ? (
+        {isResolvingLikedCatalog ? (
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center gap-3 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
+              ssr && "ssr"
+            )}
+          >
+            <Spinner className="size-5 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Loading your liked recipes...
+            </p>
+          </div>
+        ) : !recipes || recipes.length === 0 ? (
           <ViewTransition
             key="empty-results"
             default="none"
@@ -979,6 +1208,8 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
               <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 {activeQueryText ? (
                   <Sparkles aria-hidden="true" className="size-5" />
+                ) : isEmptyLikedOnly ? (
+                  <Heart aria-hidden="true" className="size-5" />
                 ) : (
                   <Search aria-hidden="true" className="size-5" />
                 )}
@@ -987,12 +1218,16 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                 <p className="font-semibold text-foreground">
                   {activeQueryText
                     ? `No recipes found for "${activeQueryText}"`
-                    : "No recipes match these filters"}
+                    : isEmptyLikedOnly
+                      ? "No liked recipes yet"
+                      : "No recipes match these filters"}
                 </p>
                 <p className="mx-auto max-w-md text-sm text-muted-foreground">
                   {activeQueryText
                     ? "Want Gemini to turn that into a fresh recipe?"
-                    : "Try adjusting or clearing your filters in the Filter panel."}
+                    : isEmptyLikedOnly
+                      ? "Tap the heart on any recipe to save your favorites here."
+                      : "Try adjusting or clearing your filters in the Filter panel."}
                 </p>
               </div>
               {activeQueryText && (
