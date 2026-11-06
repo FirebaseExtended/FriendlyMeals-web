@@ -145,7 +145,7 @@
   }
 }
 
-/* Shared-element view transition for recipe titles between list and detail */
+/* Shared-element view transitions across routes */
 ::view-transition-group(.vt-recipe-title) {
   z-index: 3;
   animation-duration: 100ms;
@@ -156,6 +156,25 @@
 ::view-transition-new(.vt-recipe-title) {
   width: 100%;
   height: auto;
+}
+
+::view-transition-group(.vt-nav-back),
+::view-transition-group(.vt-generate-cta) {
+  z-index: 4;
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(.vt-nav-back),
+::view-transition-new(.vt-nav-back) {
+  height: 100%;
+  width: auto;
+}
+
+::view-transition-old(.vt-generate-cta),
+::view-transition-new(.vt-generate-cta) {
+  height: 100%;
+  width: 100%;
 }
 
 /* Recipe card list transitions (filter enter/exit & sort/filter reorder) */
@@ -207,6 +226,12 @@
   ::view-transition-group(.vt-recipe-title),
   ::view-transition-old(.vt-recipe-title),
   ::view-transition-new(.vt-recipe-title),
+  ::view-transition-group(.vt-nav-back),
+  ::view-transition-old(.vt-nav-back),
+  ::view-transition-new(.vt-nav-back),
+  ::view-transition-group(.vt-generate-cta),
+  ::view-transition-old(.vt-generate-cta),
+  ::view-transition-new(.vt-generate-cta),
   ::view-transition-group(.vt-recipe-card-move),
   ::view-transition-new(.vt-recipe-card-enter):only-child,
   ::view-transition-old(.vt-recipe-card-exit):only-child {

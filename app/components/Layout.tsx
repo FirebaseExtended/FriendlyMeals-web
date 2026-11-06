@@ -1,4 +1,4 @@
-import { type FC, type ReactNode } from "react";
+import { ViewTransition, type FC, type ReactNode } from "react";
 import {
   href,
   isRouteErrorResponse,
@@ -11,7 +11,11 @@ import type { Route } from "./+types/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/firebase/auth";
 import { useWasServerRendered } from "@/lib/ssr";
-import { cn } from "@/lib/utils";
+import {
+  cn,
+  GENERATE_CTA_TRANSITION_NAME,
+  NAV_RECIPES_TRANSITION_NAME,
+} from "@/lib/utils";
 
 const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
   children,
@@ -32,28 +36,42 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
             aria-label="Primary"
             className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6"
           >
-            <Link
-              to={href("/recipes")}
-              className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
+            <ViewTransition
+              name={NAV_RECIPES_TRANSITION_NAME}
+              default="none"
+              share="vt-nav-back"
             >
-              <Flame aria-hidden="true" className="w-5 h-5 text-primary" />
-              <span>Friendly Meals</span>
-            </Link>
+              <Link
+                to={href("/recipes")}
+                className="inline-flex w-fit items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
+              >
+                <Flame aria-hidden="true" className="w-5 h-5 text-primary" />
+                <span>Friendly Meals</span>
+              </Link>
+            </ViewTransition>
 
             {onLogin ? (
               <div aria-hidden="true" className="h-8 w-28" />
-            ) : !authReady ? (
-              <Button type="button" size="sm" disabled className="w-28 gap-1.5">
-                <Sparkles aria-hidden="true" className="size-3.5" />
-                <span>Generate</span>
-              </Button>
-            ) : user ? (
-              <Button asChild size="sm" className="w-28 gap-1.5">
-                <Link to={href("/generate")}>
-                  <Sparkles aria-hidden="true" className="size-3.5" />
-                  <span>Generate</span>
-                </Link>
-              </Button>
+            ) : !authReady || user ? (
+              <ViewTransition
+                name={GENERATE_CTA_TRANSITION_NAME}
+                default="none"
+                share="vt-generate-cta"
+              >
+                {!authReady ? (
+                  <Button type="button" size="sm" disabled className="w-28 gap-1.5">
+                    <Sparkles aria-hidden="true" className="size-3.5" />
+                    <span>Generate</span>
+                  </Button>
+                ) : (
+                  <Button asChild size="sm" className="w-28 gap-1.5">
+                    <Link to={href("/generate")}>
+                      <Sparkles aria-hidden="true" className="size-3.5" />
+                      <span>Generate</span>
+                    </Link>
+                  </Button>
+                )}
+              </ViewTransition>
             ) : (
               <Button asChild variant="outline" size="sm" className="w-28">
                 <Link to={href("/login")}>Sign in</Link>

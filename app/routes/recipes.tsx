@@ -584,13 +584,11 @@ const FilterPanel: FC<{
   );
 };
 
-export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const { recipes, topTags, ssr } = loaderData;
+const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
   const [searchParams] = useSearchParams();
   const submit = useSubmit();
   const navigation = useNavigation();
   const recipesPath = href("/recipes");
-  const [filterOpen, setFilterOpen] = useState(false);
 
   const activeSearchParams =
     navigation.state !== "idle" &&
@@ -598,17 +596,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       ? new URLSearchParams(navigation.location.search)
       : searchParams;
 
-  const activeQueryText = searchParams.get("q")?.trim() || "";
-  const activeMinRating = Number(searchParams.get("minRating")) || 0;
-  const activeTags =
-    searchParams.get("tags")?.split(",").filter(Boolean) || [];
   const activeSort = parseSortParam(activeSearchParams.get("sort"));
-  const hasFilters =
-    Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
-
-  if ((!recipes || recipes.length === 0) && !hasFilters) {
-    return <ZeroState ssr={ssr} />;
-  }
 
   const handleSortChange = (nextSortValue: string) => {
     const nextSort = parseSortParam(nextSortValue);
@@ -624,6 +612,50 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       replace: true,
     });
   };
+
+  return (
+    <div className="flex items-center gap-2">
+      <label
+        htmlFor="recipe-sort"
+        className="text-xs font-medium text-muted-foreground"
+      >
+        Sort
+      </label>
+      <Select
+        id="recipe-sort"
+        name="sort"
+        value={activeSort}
+        onChange={(e) => handleSortChange(e.target.value)}
+        className={cn(
+          "h-8 w-auto rounded-lg bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs",
+          ssr && "ssr"
+        )}
+      >
+        {SORT_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+};
+
+export default function RecipesPage({ loaderData }: Route.ComponentProps) {
+  const { recipes, topTags, ssr } = loaderData;
+  const [searchParams] = useSearchParams();
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const activeQueryText = searchParams.get("q")?.trim() || "";
+  const activeMinRating = Number(searchParams.get("minRating")) || 0;
+  const activeTags =
+    searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const hasFilters =
+    Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
+
+  if ((!recipes || recipes.length === 0) && !hasFilters) {
+    return <ZeroState ssr={ssr} />;
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4">
@@ -658,30 +690,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             </span>
           </h1>
 
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="recipe-sort"
-              className="text-xs font-medium text-muted-foreground"
-            >
-              Sort
-            </label>
-            <Select
-              id="recipe-sort"
-              name="sort"
-              value={activeSort}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className={cn(
-                "h-8 w-auto rounded-lg bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs",
-                ssr && "ssr"
-              )}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </div>
+          <SortControl ssr={ssr} />
         </div>
 
         {!recipes || recipes.length === 0 ? (

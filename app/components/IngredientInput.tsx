@@ -1,8 +1,8 @@
-import { useState, type FC } from "react";
+import { useState, ViewTransition, type FC } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
+import { cn, GENERATE_CTA_TRANSITION_NAME } from "@/lib/utils";
 
 const CUISINES = [
   { label: "Any cuisine", value: "" },
@@ -18,6 +18,7 @@ interface IngredientInputProps {
   initialIngredients?: string;
   submitDisabled?: boolean;
   hasPreview?: boolean;
+  shareSubmitTransition?: boolean;
   onCancelEdit?: () => void;
   ssr?: boolean;
 }
@@ -28,6 +29,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
   initialIngredients = "",
   submitDisabled = false,
   hasPreview = false,
+  shareSubmitTransition = true,
   onCancelEdit,
   ssr = false,
 }) => {
@@ -40,13 +42,37 @@ export const IngredientInput: FC<IngredientInputProps> = ({
     if (busy || submitDisabled) return;
     if (!ingredients.trim()) {
       setFieldError(
-        "Enter a couple of ingredients first—even pantry staples work."
+        "Enter a couple of ingredients first\u2014even pantry staples work."
       );
       return;
     }
     setFieldError(null);
     void handleSubmit(ingredients, cuisineType);
   };
+
+  const submitButton = (
+    <Button
+      type="submit"
+      size="sm"
+      disabled={busy || submitDisabled}
+      className={cn("rounded-xl px-4 gap-1.5", busy && "disabled:opacity-100")}
+    >
+      {busy ? (
+        <Spinner className="size-4" />
+      ) : (
+        <Sparkles aria-hidden="true" className="size-3.5" />
+      )}
+      <span>
+        {busy
+          ? typeof isLoading === "string"
+            ? `${isLoading}...`
+            : "Generating..."
+          : hasPreview
+            ? "Regenerate"
+            : "Generate Recipe"}
+      </span>
+    </Button>
+  );
 
   return (
     <form
@@ -136,27 +162,17 @@ export const IngredientInput: FC<IngredientInputProps> = ({
               Cancel
             </Button>
           )}
-          <Button
-            type="submit"
-            size="sm"
-            disabled={busy || submitDisabled}
-            className={cn("rounded-xl px-4 gap-1.5", busy && "disabled:opacity-100")}
-          >
-            {busy ? (
-              <Spinner className="size-4" />
-            ) : (
-              <Sparkles aria-hidden="true" className="size-3.5" />
-            )}
-            <span>
-              {busy
-                ? typeof isLoading === "string"
-                  ? `${isLoading}...`
-                  : "Generating..."
-                : hasPreview
-                  ? "Regenerate"
-                  : "Generate Recipe"}
-            </span>
-          </Button>
+          {shareSubmitTransition ? (
+            <ViewTransition
+              name={GENERATE_CTA_TRANSITION_NAME}
+              default="none"
+              share="vt-generate-cta"
+            >
+              {submitButton}
+            </ViewTransition>
+          ) : (
+            submitButton
+          )}
         </div>
       </div>
     </form>

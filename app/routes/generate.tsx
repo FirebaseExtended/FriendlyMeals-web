@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, ViewTransition } from "react";
 import { href, Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Database, Sparkles } from "lucide-react";
 import type { Route } from "./+types/generate";
@@ -16,7 +16,7 @@ import {
 import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
 import { useWasServerRendered } from "@/lib/ssr";
-import { cn } from "@/lib/utils";
+import { cn, NAV_RECIPES_TRANSITION_NAME } from "@/lib/utils";
 
 const SEED_BUTTON_MAX_RECIPES = 15;
 
@@ -224,13 +224,19 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
       <nav aria-label="Breadcrumb">
-        <Link
-          to={href("/recipes")}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        <ViewTransition
+          name={NAV_RECIPES_TRANSITION_NAME}
+          default="none"
+          share="vt-nav-back"
         >
-          <ArrowLeft aria-hidden="true" className="w-4 h-4" />
-          <span>Back to recipes</span>
-        </Link>
+          <Link
+            to={href("/recipes")}
+            className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+            <span>Back to recipes</span>
+          </Link>
+        </ViewTransition>
       </nav>
 
       <section
@@ -258,6 +264,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
           isLoading={isGenerating ? "Generating recipe" : false}
           submitDisabled={!authReady || !user || isPublishing || isSeeding}
           hasPreview={Boolean(previewRecipe)}
+          shareSubmitTransition={showComposer}
           onCancelEdit={() => setIsInputExpanded(false)}
           ssr={isSsr}
           handleSubmit={handleGenerateRecipe}

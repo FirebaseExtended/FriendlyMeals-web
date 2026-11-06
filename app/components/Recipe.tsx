@@ -12,7 +12,11 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/firebase/data";
 import { useAuthUser } from "@/firebase/auth";
-import { cn, getRecipeTitleTransitionName } from "@/lib/utils";
+import {
+  cn,
+  getRecipeTitleTransitionName,
+  NAV_RECIPES_TRANSITION_NAME,
+} from "@/lib/utils";
 
 function isSafeImageUrl(url: string | undefined): url is string {
   return Boolean(
@@ -125,13 +129,19 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
     <div className="max-w-2xl mx-auto w-full space-y-4">
       {!readonly && (
         <nav aria-label="Breadcrumb">
-          <Link
-            to={href("/recipes")}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          <ViewTransition
+            name={NAV_RECIPES_TRANSITION_NAME}
+            default="none"
+            share="vt-nav-back"
           >
-            <ArrowLeft aria-hidden="true" className="w-4 h-4" />
-            <span>Back to recipes</span>
-          </Link>
+            <Link
+              to={href("/recipes")}
+              className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+              <span>Back to recipes</span>
+            </Link>
+          </ViewTransition>
         </nav>
       )}
 
