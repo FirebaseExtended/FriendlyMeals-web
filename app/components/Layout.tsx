@@ -72,7 +72,7 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
   return (
     <div
       className={cn(
-        "grid min-h-dvh bg-muted/40",
+        "grid min-h-dvh bg-background",
         showHeader ? "grid-rows-[auto_1fr_auto]" : "grid-rows-[1fr_auto]"
       )}
     >

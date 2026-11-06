@@ -63,7 +63,7 @@ function RecipeSkeleton() {
       aria-label="Generating recipe"
       className="w-full overflow-hidden rounded-md border bg-card shadow-xs"
     >
-      <div className="h-1.5 w-full bg-gradient-to-r from-primary via-teal-500 to-amber-400 opacity-60" />
+      <div className="h-1.5 w-full bg-gradient-to-r from-primary/85 via-[#FF9100]/75 to-[#FFC400]/80 opacity-60" />
       <div className="space-y-6 p-6 sm:p-8 animate-pulse">
         <div className="space-y-3">
           <div className="h-8 w-2/3 rounded-md bg-muted" />

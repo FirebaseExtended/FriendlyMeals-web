@@ -172,7 +172,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
             />
           </div>
         ) : (
-          <div className="h-1.5 w-full bg-gradient-to-r from-primary via-teal-500 to-amber-400" />
+          <div className="h-1.5 w-full bg-gradient-to-r from-primary/85 via-[#FF9100]/75 to-[#FFC400]/80" />
         )}
 
         <div className="p-6 sm:p-8 space-y-6">
@@ -201,7 +201,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   className={cn(
                     "shrink-0 rounded-md gap-1.5 px-3 transition-colors",
                     optimisticLiked &&
-                      "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400"
+                      "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary dark:border-primary/40 dark:bg-primary/15 dark:hover:bg-primary/25"
                   )}
                 >
                   <Heart
@@ -237,8 +237,8 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                           className={cn(
                             "w-4 h-4 transition-colors",
                             star <= activeRating
-                              ? "fill-amber-400 text-amber-400"
-                              : "text-border hover:text-amber-400"
+                              ? "fill-star-fill text-star-stroke"
+                              : "text-border hover:text-star-stroke"
                           )}
                         />
                       </button>
@@ -264,7 +264,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                 {recipe.tags.map((tag) => (
                   <li
                     key={tag}
-                    className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-primary/10 text-primary"
+                    className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-secondary text-secondary-foreground"
                   >
                     {tag}
                   </li>

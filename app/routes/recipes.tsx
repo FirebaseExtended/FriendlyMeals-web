@@ -811,7 +811,7 @@ const FilterPanel: FC<{
                 className={cn(
                   "size-4 transition-colors",
                   isMyLikesChecked
-                    ? "fill-rose-500 text-rose-500"
+                    ? "fill-primary text-primary"
                     : "text-muted-foreground"
                 )}
               />
@@ -869,8 +869,8 @@ const FilterPanel: FC<{
                     className={cn(
                       "w-5 h-5 transition-colors",
                       star <= activeRatingPreview
-                        ? "fill-amber-400 text-amber-400"
-                        : "text-border hover:text-amber-400"
+                        ? "fill-star-fill text-star-stroke"
+                        : "text-border hover:text-star-stroke"
                     )}
                   />
                 </button>
@@ -1299,7 +1299,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                                 <span className="inline-flex items-center gap-1 font-medium text-foreground">
                                   <Star
                                     aria-hidden="true"
-                                    className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
+                                    className="w-3.5 h-3.5 fill-star-fill text-star-stroke"
                                   />
                                   {recipe.averageRating.toFixed(1)}
                                 </span>
