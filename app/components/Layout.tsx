@@ -19,6 +19,31 @@ import {
   NAV_RECIPES_TRANSITION_NAME,
 } from "@/lib/utils";
 
+const FirebaseLogo: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    viewBox="0 0 192 192"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    className={className}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="m124.072 170.836-.005-.002a66.724 66.724 0 0 1-30.396 6.125 67.007 67.007 0 0 1-22.703-4.797l-22.054-66.018 15.28-29.593h56.347s3.533 94.286 3.531 94.285Z"
+      fill="#FF9100"
+    />
+    <path
+      d="M94.438 152.218c-19.528-18.059-31.377-44.2-30.374-72.873.033-.929.083-1.862.139-2.791a50.693 50.693 0 0 0-10.906-1.59 50.617 50.617 0 0 0-15.503 1.862 66.7 66.7 0 0 0-8.752 30.832c-1.012 28.964 16.515 54.269 41.926 64.504a50.692 50.692 0 0 0 23.47-19.944Z"
+      fill="#FFC400"
+    />
+    <path
+      d="M99.54 8.69C86.749 18.94 76.643 32.451 70.534 48.02a94.509 94.509 0 0 0-6.34 28.534c22.462 5.795 38.691 26.561 37.846 50.706a50.355 50.355 0 0 1-7.616 24.963 94.543 94.543 0 0 0 29.648 18.613c22.218-10.268 37.98-32.365 38.891-58.502.591-16.936-5.915-32.028-15.106-44.768C138.148 54.096 99.54 8.69 99.54 8.69Z"
+      fill="#DD2C00"
+    />
+  </svg>
+);
+
 const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
   children,
   forceHeader = false,
@@ -45,7 +70,12 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
     : undefined;
 
   return (
-    <div className="min-h-screen bg-muted/40">
+    <div
+      className={cn(
+        "grid min-h-dvh bg-muted/40",
+        showHeader ? "grid-rows-[auto_1fr_auto]" : "grid-rows-[1fr_auto]"
+      )}
+    >
       {showHeader && (
         <header className={cn("border-b bg-card", isSsr && "ssr")}>
           <nav
@@ -93,9 +123,25 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
           </nav>
         </header>
       )}
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full min-w-0 max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         {children}
       </main>
+      <footer
+        className={cn(
+          "mx-auto flex w-full max-w-5xl items-center justify-center px-4 py-5 text-xs text-muted-foreground sm:px-6",
+          isSsr && "ssr"
+        )}
+      >
+        <a
+          href="https://firebase.google.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-muted-foreground/85 hover:text-foreground transition-colors"
+        >
+          <FirebaseLogo className="size-4 shrink-0" />
+          <span>built with Firebase</span>
+        </a>
+      </footer>
     </div>
   );
 };
