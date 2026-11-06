@@ -116,9 +116,14 @@ function ItemContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
+function ItemTitle({
+  className,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"div"> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot : "div"
   return (
-    <div
+    <Comp
       data-slot="item-title"
       className={cn(
         "flex w-fit items-center gap-2 text-sm leading-snug font-medium",

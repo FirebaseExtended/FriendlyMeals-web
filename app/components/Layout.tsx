@@ -28,12 +28,15 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
     <div className="min-h-screen bg-muted/40">
       {showHeader && (
         <header className={cn("border-b bg-card", isSsr && "ssr")}>
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <nav
+            aria-label="Primary"
+            className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6"
+          >
             <Link
               to={href("/recipes")}
               className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
             >
-              <Flame className="w-5 h-5 text-primary" />
+              <Flame aria-hidden="true" className="w-5 h-5 text-primary" />
               <span>Friendly Meals</span>
             </Link>
 
@@ -41,13 +44,13 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
               <div aria-hidden="true" className="h-8 w-28" />
             ) : !authReady ? (
               <Button type="button" size="sm" disabled className="w-28 gap-1.5">
-                <Sparkles className="size-3.5" />
+                <Sparkles aria-hidden="true" className="size-3.5" />
                 <span>Generate</span>
               </Button>
             ) : user ? (
               <Button asChild size="sm" className="w-28 gap-1.5">
                 <Link to={href("/generate")}>
-                  <Sparkles className="size-3.5" />
+                  <Sparkles aria-hidden="true" className="size-3.5" />
                   <span>Generate</span>
                 </Link>
               </Button>
@@ -56,7 +59,7 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
                 <Link to={href("/login")}>Sign in</Link>
               </Button>
             )}
-          </div>
+          </nav>
         </header>
       )}
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">

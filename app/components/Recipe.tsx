@@ -111,24 +111,28 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
       .replace(/\s*servings?\b/i, "")
       .trim() || recipe.servings;
 
+  const TitleTag = readonly ? "h2" : "h1";
+  const SectionHeadingTag = readonly ? "h3" : "h2";
+  const StepHeadingTag = readonly ? "h4" : "h3";
+
   const titleHeading = (
-    <h1 className="w-fit text-balance text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+    <TitleTag className="w-fit text-balance text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
       {recipe.title}
-    </h1>
+    </TitleTag>
   );
 
   return (
     <div className="max-w-2xl mx-auto w-full space-y-4">
       {!readonly && (
-        <div>
+        <nav aria-label="Breadcrumb">
           <Link
             to={href("/recipes")}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft aria-hidden="true" className="w-4 h-4" />
             <span>Back to recipes</span>
           </Link>
-        </div>
+        </nav>
       )}
 
       <article
@@ -150,7 +154,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
         )}
 
         <div className="p-6 sm:p-8 space-y-6">
-          <div className="space-y-3">
+          <header className="space-y-3">
             <div className="flex items-start justify-between gap-4">
               {!readonly && recipe.id ? (
                 <ViewTransition
@@ -168,7 +172,8 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  aria-label={optimisticLiked ? "Unlike recipe" : "Like recipe"}
+                  aria-pressed={optimisticLiked}
+                  aria-label={`Like recipe (${optimisticLikesCount} ${optimisticLikesCount === 1 ? "like" : "likes"})`}
                   onClick={handleLikeToggle}
                   className={cn(
                     "shrink-0 rounded-full gap-1.5 px-3.5 transition-colors",
@@ -177,6 +182,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   )}
                 >
                   <Heart
+                    aria-hidden="true"
                     className={cn("w-4 h-4", optimisticLiked && "fill-current")}
                   />
                   <span className="tabular-nums">{optimisticLikesCount}</span>
@@ -185,39 +191,43 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
             </div>
 
             {!readonly && (
-              <div className="flex flex-wrap items-center gap-2">
-                <div
-                  className="flex items-center gap-0.5"
-                  onMouseLeave={() => setHoveredStar(0)}
-                >
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      aria-label={`Rate ${star} out of 5 stars`}
-                      onMouseEnter={() => setHoveredStar(star)}
-                      onFocus={() => setHoveredStar(star)}
-                      onBlur={() => setHoveredStar(0)}
-                      onClick={() => handleRating(star)}
-                      className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <Star
-                        className={cn(
-                          "w-4 h-4 transition-colors",
-                          star <= activeRating
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-border hover:text-amber-400"
-                        )}
-                      />
-                    </button>
-                  ))}
+              <fieldset className="min-w-0">
+                <legend className="sr-only">Rate this recipe</legend>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div
+                    className="flex items-center gap-0.5"
+                    onMouseLeave={() => setHoveredStar(0)}
+                  >
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        aria-label={`Rate ${star} out of 5 stars`}
+                        onMouseEnter={() => setHoveredStar(star)}
+                        onFocus={() => setHoveredStar(star)}
+                        onBlur={() => setHoveredStar(0)}
+                        onClick={() => handleRating(star)}
+                        className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Star
+                          aria-hidden="true"
+                          className={cn(
+                            "w-4 h-4 transition-colors",
+                            star <= activeRating
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-border hover:text-amber-400"
+                          )}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-sm text-muted-foreground font-medium">
+                    {displayRating > 0
+                      ? displayRating.toFixed(1)
+                      : "Rate this recipe"}
+                  </span>
                 </div>
-                <span className="text-sm text-muted-foreground font-medium">
-                  {displayRating > 0
-                    ? displayRating.toFixed(1)
-                    : "Rate this recipe"}
-                </span>
-              </div>
+              </fieldset>
             )}
 
             {fetcher.data?.error && (
@@ -227,47 +237,47 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
             )}
 
             {recipe.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
+              <ul aria-label="Tags" className="flex flex-wrap gap-1.5 pt-0.5">
                 {recipe.tags.map((tag) => (
-                  <span
+                  <li
                     key={tag}
                     className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-primary/10 text-primary"
                   >
                     {tag}
-                  </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
+          </header>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-border/60 py-3.5 text-sm">
+          <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-border/60 py-3.5 text-sm">
             <div className="inline-flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-muted-foreground">Prep</span>
-              <span className="font-semibold text-foreground">
+              <Clock aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <dt className="text-muted-foreground">Prep</dt>
+              <dd className="font-semibold text-foreground">
                 {recipe.prepTime}
-              </span>
+              </dd>
             </div>
             <div className="inline-flex items-center gap-2">
-              <CookingPot className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-muted-foreground">Cook</span>
-              <span className="font-semibold text-foreground">
+              <CookingPot aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <dt className="text-muted-foreground">Cook</dt>
+              <dd className="font-semibold text-foreground">
                 {recipe.cookTime}
-              </span>
+              </dd>
             </div>
             <div className="inline-flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-muted-foreground">Serves</span>
-              <span className="font-semibold text-foreground">
+              <Users aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <dt className="text-muted-foreground">Serves</dt>
+              <dd className="font-semibold text-foreground">
                 {servingsDisplay}
-              </span>
+              </dd>
             </div>
-          </div>
+          </dl>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            <SectionHeadingTag className="text-lg font-semibold tracking-tight text-foreground">
               Ingredients
-            </h2>
+            </SectionHeadingTag>
             <ul className="divide-y divide-border/50">
               {recipe.ingredients.map((ingredient, index) => (
                 <li key={index} className="py-2.5 first:pt-0 last:pb-0">
@@ -286,9 +296,9 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            <SectionHeadingTag className="text-lg font-semibold tracking-tight text-foreground">
               Instructions
-            </h2>
+            </SectionHeadingTag>
             <ol className="space-y-5">
               {steps.map((step, index) => {
                 const cleanTitle = step.title.replace(
@@ -297,14 +307,17 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                 );
                 return (
                   <li key={index} className="flex items-start gap-3.5">
-                    <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary tabular-nums">
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary tabular-nums"
+                    >
                       {index + 1}
                     </span>
                     <div className="space-y-1 min-w-0">
                       {cleanTitle && (
-                        <h3 className="text-base font-semibold leading-snug text-foreground">
+                        <StepHeadingTag className="text-base font-semibold leading-snug text-foreground">
                           {cleanTitle}
-                        </h3>
+                        </StepHeadingTag>
                       )}
                       <p className="text-sm sm:text-base text-foreground/85 leading-relaxed">
                         {step.content}
@@ -317,13 +330,13 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
           </section>
 
           {!readonly && recipe.id && (
-            <div className="flex items-center justify-between border-t border-border/60 pt-4 text-xs text-muted-foreground">
+            <footer className="flex items-center justify-between border-t border-border/60 pt-4 text-xs text-muted-foreground">
               <Link
                 to={href("/recipes/:recipeId.md", { recipeId: recipe.id })}
                 reloadDocument
                 className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
               >
-                <FileText className="w-3.5 h-3.5" />
+                <FileText aria-hidden="true" className="w-3.5 h-3.5" />
                 <span>View raw Markdown (.md)</span>
               </Link>
               {isAuthor && (
@@ -336,7 +349,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   {isDeleting ? "Deleting..." : "Delete recipe"}
                 </button>
               )}
-            </div>
+            </footer>
           )}
         </div>
       </article>

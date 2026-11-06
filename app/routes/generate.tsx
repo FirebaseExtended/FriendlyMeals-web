@@ -223,15 +223,15 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-      <div>
+      <nav aria-label="Breadcrumb">
         <Link
           to={href("/recipes")}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft aria-hidden="true" className="w-4 h-4" />
           <span>Back to recipes</span>
         </Link>
-      </div>
+      </nav>
 
       <section
         className={cn(
@@ -276,10 +276,13 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
       {showComposer && isGenerating && <RecipeSkeleton />}
 
       {previewRecipe && !(showComposer && isGenerating) && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+        <section
+          aria-label="Generated recipe preview"
+          className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300"
+        >
+          <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
             <div className="flex items-center gap-2 min-w-0 text-sm">
-              <Sparkles className="w-4 h-4 text-primary shrink-0" />
+              <Sparkles aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
               <span className="font-semibold text-foreground shrink-0">
                 {isGenerating ? "Regenerating draft..." : "Draft ready"}
               </span>
@@ -343,7 +346,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
                 )}
               </Button>
             </div>
-          </div>
+          </header>
 
           {!showComposer && errorMessage && (
             <div
@@ -359,11 +362,11 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
           ) : (
             <RecipeDetail recipe={previewRecipe} readonly />
           )}
-        </div>
+        </section>
       )}
 
       {loaderData.showSeedButton && !hasSeeded && (
-        <div
+        <footer
           className={cn(
             "mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 text-xs text-muted-foreground",
             isSsr && "ssr"
@@ -391,12 +394,12 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
               </>
             ) : (
               <>
-                <Database className="size-3" />
+                <Database aria-hidden="true" className="size-3" />
                 <span>Seed 20 recipes</span>
               </>
             )}
           </Button>
-        </div>
+        </footer>
       )}
     </div>
   );

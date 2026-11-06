@@ -45,12 +45,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
   Item,
   ItemActions,
   ItemContent,
-  ItemGroup,
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
@@ -181,7 +180,7 @@ const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
       <Empty className={cn("border border-dashed bg-card", ssr && "ssr")}>
         <EmptyMedia variant="icon">
-          <BookOpen className="h-6 w-6" />
+          <BookOpen aria-hidden="true" className="h-6 w-6" />
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>No recipes yet</EmptyTitle>
@@ -290,7 +289,10 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         <input type="hidden" name="sort" value={sortParam} />
       )}
 
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+      />
       <Input
         id="recipe-search"
         name="q"
@@ -321,7 +323,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
             aria-label="Clear search"
             className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
           >
-            <X className="h-4 w-4" />
+            <X aria-hidden="true" className="h-4 w-4" />
           </button>
         )
       )}
@@ -415,10 +417,14 @@ const FilterPanel: FC<{
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
+        aria-controls="recipe-filter-form"
         className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden"
       >
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+          <SlidersHorizontal
+            aria-hidden="true"
+            className="w-4 h-4 text-muted-foreground"
+          />
           <span className="font-medium">Filter</span>
           {hasPanelFilters && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -427,17 +433,20 @@ const FilterPanel: FC<{
           )}
         </div>
         {isOpen ? (
-          <ChevronUp className="w-4 h-4" />
+          <ChevronUp aria-hidden="true" className="w-4 h-4" />
         ) : (
-          <ChevronDown className="w-4 h-4" />
+          <ChevronDown aria-hidden="true" className="w-4 h-4" />
         )}
       </button>
 
       {/* Desktop static sidebar header */}
       <div className="hidden md:flex items-center justify-between pb-3">
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">Filter</span>
+          <SlidersHorizontal
+            aria-hidden="true"
+            className="w-4 h-4 text-muted-foreground"
+          />
+          <h2 className="text-sm font-semibold text-foreground">Filter</h2>
         </div>
         {hasPanelFilters && (
           <Link
@@ -451,6 +460,7 @@ const FilterPanel: FC<{
       </div>
 
       <Form
+        id="recipe-filter-form"
         method="get"
         action={recipesPath}
         className={cn(
@@ -474,8 +484,10 @@ const FilterPanel: FC<{
         )}
 
         <FieldGroup className="gap-5">
-          <Field>
-            <FieldLabel>Minimum Rating</FieldLabel>
+          <FieldSet className="gap-0">
+            <FieldLegend variant="label" className="leading-snug">
+              Minimum Rating
+            </FieldLegend>
             <div
               className="flex items-center gap-1"
               onMouseLeave={() => setHoveredStar(0)}
@@ -497,6 +509,7 @@ const FilterPanel: FC<{
                   className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Star
+                    aria-hidden="true"
                     className={cn(
                       "w-5 h-5 transition-colors",
                       star <= activeRatingPreview
@@ -513,15 +526,17 @@ const FilterPanel: FC<{
                   className="ml-2 p-1 text-xs text-muted-foreground hover:text-foreground"
                   aria-label="Clear minimum rating"
                 >
-                  <X className="w-4 h-4" />
+                  <X aria-hidden="true" className="w-4 h-4" />
                 </button>
               )}
             </div>
-          </Field>
+          </FieldSet>
 
           {availableTags.length > 0 && (
-            <Field>
-              <FieldLabel>Popular Tags</FieldLabel>
+            <FieldSet className="gap-0">
+              <FieldLegend variant="label" className="leading-snug">
+                Popular Tags
+              </FieldLegend>
               <div className="flex flex-wrap gap-2">
                 {availableTags.map((tag) => {
                   const selected = selectedTags.includes(tag);
@@ -549,7 +564,7 @@ const FilterPanel: FC<{
                   );
                 })}
               </div>
-            </Field>
+            </FieldSet>
           )}
 
           {hasPanelFilters && (
@@ -616,7 +631,10 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         <SearchBar ssr={ssr} />
       </div>
 
-      <aside className="md:col-start-1 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start">
+      <aside
+        aria-label="Recipe filters"
+        className="md:col-start-1 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start"
+      >
         <FilterPanel
           isOpen={filterOpen}
           onToggle={() => setFilterOpen(!filterOpen)}
@@ -625,9 +643,15 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         />
       </aside>
 
-      <section className="min-w-0 md:col-start-2 md:row-start-2">
+      <section
+        aria-labelledby="recipes-heading"
+        className="min-w-0 md:col-start-2 md:row-start-2"
+      >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h1 className="text-base font-semibold text-foreground">
+          <h1
+            id="recipes-heading"
+            className="text-base font-semibold text-foreground"
+          >
             Recipes{" "}
             <span className="text-sm font-normal text-muted-foreground tabular-nums">
               ({recipes.length})
@@ -660,142 +684,150 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
 
-        <ItemGroup
-          className="gap-3"
-          role={recipes && recipes.length > 0 ? "list" : undefined}
-        >
-          {!recipes || recipes.length === 0 ? (
-            <ViewTransition
-              key="empty-results"
-              default="none"
-              enter="vt-recipe-card-enter"
-              exit="vt-recipe-card-exit"
+        {!recipes || recipes.length === 0 ? (
+          <ViewTransition
+            key="empty-results"
+            default="none"
+            enter="vt-recipe-card-enter"
+            exit="vt-recipe-card-exit"
+          >
+            <div
+              className={cn(
+                "space-y-4 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
+                ssr && "ssr"
+              )}
             >
-              <div
-                className={cn(
-                  "space-y-4 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
-                  ssr && "ssr"
-                )}
-              >
-                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  {activeQueryText ? (
-                    <Sparkles className="size-5" />
-                  ) : (
-                    <Search className="size-5" />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <p className="font-semibold text-foreground">
-                    {activeQueryText
-                      ? `No recipes found for "${activeQueryText}"`
-                      : "No recipes match these filters"}
-                  </p>
-                  <p className="mx-auto max-w-md text-sm text-muted-foreground">
-                    {activeQueryText
-                      ? "Want Gemini to turn that into a fresh recipe?"
-                      : "Try adjusting or clearing your filters in the Filter panel."}
-                  </p>
-                </div>
-                {activeQueryText && (
-                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                    <Button asChild size="sm" className="gap-1.5">
-                      <Link
-                        to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
-                      >
-                        <Sparkles className="size-3.5" />
-                        <span>Generate a "{activeQueryText}" recipe</span>
-                      </Link>
-                    </Button>
-                  </div>
+              <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                {activeQueryText ? (
+                  <Sparkles aria-hidden="true" className="size-5" />
+                ) : (
+                  <Search aria-hidden="true" className="size-5" />
                 )}
               </div>
-            </ViewTransition>
-          ) : (
-            recipes.map((recipe: Recipe) => {
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">
+                  {activeQueryText
+                    ? `No recipes found for "${activeQueryText}"`
+                    : "No recipes match these filters"}
+                </p>
+                <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                  {activeQueryText
+                    ? "Want Gemini to turn that into a fresh recipe?"
+                    : "Try adjusting or clearing your filters in the Filter panel."}
+                </p>
+              </div>
+              {activeQueryText && (
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  <Button asChild size="sm" className="gap-1.5">
+                    <Link
+                      to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
+                    >
+                      <Sparkles aria-hidden="true" className="size-3.5" />
+                      <span>Generate a "{activeQueryText}" recipe</span>
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </ViewTransition>
+        ) : (
+          <ul className="group/item-group flex flex-col gap-3">
+            {recipes.map((recipe: Recipe) => {
               const totalMinutesLabel = formatTotalMinutes(
                 recipe.prepTime,
                 recipe.cookTime
               );
               return (
-              <ViewTransition
-                key={recipe.id}
-                default="none"
-                enter="vt-recipe-card-enter"
-                exit="vt-recipe-card-exit"
-                update="vt-recipe-card-move"
-              >
-                <Item
-                  asChild
-                  variant="outline"
-                  className={cn(
-                    "rounded-xl bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
-                    ssr && "ssr"
-                  )}
+                <ViewTransition
+                  key={recipe.id}
+                  default="none"
+                  enter="vt-recipe-card-enter"
+                  exit="vt-recipe-card-exit"
+                  update="vt-recipe-card-move"
                 >
-                  <Link
-                    to={href("/recipes/:recipeId", { recipeId: recipe.id })}
-                  >
-                    {isSafeImageUrl(recipe.imageUri) && (
-                      <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
-                        <img
-                          src={recipe.imageUri}
-                          alt={recipe.title}
-                          className="size-full object-cover"
-                        />
-                      </ItemMedia>
-                    )}
-                    <ItemContent className="gap-1.5">
-                      <ViewTransition
-                        name={getRecipeTitleTransitionName(recipe.id)}
-                        default="none"
-                        share="vt-recipe-title"
-                      >
-                        <ItemTitle className="mb-1.5 text-base font-semibold text-foreground group-hover/item:text-primary transition-colors">
-                          {recipe.title}
-                        </ItemTitle>
-                      </ViewTransition>
-                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-                        {recipe.averageRating > 0 ? (
-                          <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            {recipe.averageRating.toFixed(1)}
-                          </span>
-                        ) : (
-                          <span>New</span>
-                        )}
-                        {recipe.likes > 0 && (
-                          <span>
-                            • {recipe.likes}{" "}
-                            {recipe.likes === 1 ? "like" : "likes"}
-                          </span>
-                        )}
-                        {totalMinutesLabel && (
-                          <span>• {totalMinutesLabel}</span>
-                        )}
-                      </div>
-                      {recipe.tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {recipe.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                  <li>
+                    <Item
+                      asChild
+                      variant="outline"
+                      className={cn(
+                        "rounded-xl bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                        ssr && "ssr"
                       )}
-                    </ItemContent>
-                    <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
-                      <ChevronRight className="w-5 h-5" />
-                    </ItemActions>
-                  </Link>
-                </Item>
-              </ViewTransition>
+                    >
+                      <Link
+                        to={href("/recipes/:recipeId", { recipeId: recipe.id })}
+                      >
+                        {isSafeImageUrl(recipe.imageUri) && (
+                          <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
+                            <img
+                              src={recipe.imageUri}
+                              alt={recipe.title}
+                              className="size-full object-cover"
+                            />
+                          </ItemMedia>
+                        )}
+                        <ItemContent className="gap-1.5">
+                          <ViewTransition
+                            name={getRecipeTitleTransitionName(recipe.id)}
+                            default="none"
+                            share="vt-recipe-title"
+                          >
+                            <ItemTitle
+                              asChild
+                              className="mb-1.5 text-base font-semibold text-foreground group-hover/item:text-primary transition-colors"
+                            >
+                              <h2>{recipe.title}</h2>
+                            </ItemTitle>
+                          </ViewTransition>
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                            {recipe.averageRating > 0 ? (
+                              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                                <Star
+                                  aria-hidden="true"
+                                  className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
+                                />
+                                {recipe.averageRating.toFixed(1)}
+                              </span>
+                            ) : (
+                              <span>New</span>
+                            )}
+                            {recipe.likes > 0 && (
+                              <span>
+                                • {recipe.likes}{" "}
+                                {recipe.likes === 1 ? "like" : "likes"}
+                              </span>
+                            )}
+                            {totalMinutesLabel && (
+                              <span>• {totalMinutesLabel}</span>
+                            )}
+                          </div>
+                          {recipe.tags?.length > 0 && (
+                            <ul
+                              aria-label="Tags"
+                              className="flex flex-wrap gap-1.5 pt-0.5"
+                            >
+                              {recipe.tags.map((tag) => (
+                                <li
+                                  key={tag}
+                                  className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
+                                >
+                                  {tag}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </ItemContent>
+                        <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
+                          <ChevronRight aria-hidden="true" className="w-5 h-5" />
+                        </ItemActions>
+                      </Link>
+                    </Item>
+                  </li>
+                </ViewTransition>
               );
-            })
-          )}
-        </ItemGroup>
+            })}
+          </ul>
+        )}
       </section>
     </div>
   );

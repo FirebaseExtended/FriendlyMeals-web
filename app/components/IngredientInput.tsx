@@ -98,32 +98,31 @@ export const IngredientInput: FC<IngredientInputProps> = ({
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 px-3 py-2.5">
-        <div
-          role="group"
-          aria-label="Cuisine style"
-          className="flex flex-wrap items-center gap-1"
-        >
-          {CUISINES.map((option) => {
-            const selected = cuisineType === option.value;
-            return (
-              <button
-                key={option.label}
-                type="button"
-                disabled={busy}
-                aria-pressed={selected}
-                onClick={() => setCuisineType(option.value)}
-                className={cn(
-                  "rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
-                  selected
-                    ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/25"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
+        <fieldset className="min-w-0">
+          <legend className="sr-only">Cuisine style</legend>
+          <div className="flex flex-wrap items-center gap-1">
+            {CUISINES.map((option) => {
+              const selected = cuisineType === option.value;
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={selected}
+                  onClick={() => setCuisineType(option.value)}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                    selected
+                      ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/25"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
 
         <div className="flex items-center gap-2 ml-auto">
           {hasPreview && onCancelEdit && !busy && (
@@ -146,7 +145,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
             {busy ? (
               <Spinner className="size-4" />
             ) : (
-              <Sparkles className="size-3.5" />
+              <Sparkles aria-hidden="true" className="size-3.5" />
             )}
             <span>
               {busy
