@@ -62,11 +62,13 @@ export type NewRecipeInput = Omit<
   "id" | "authorId" | "averageRating" | "likes"
 >;
 
+export type RecipeSort = "title" | "rating" | "likes";
+
 export interface RecipeFilters {
   searchTerm?: string;
   minRating?: number;
   tags?: string[];
-  sort?: string;
+  sort?: RecipeSort;
 }
 
 // Firestore Enterprise requires a named database ID (here "friendlymeals", matching firebase.json)
@@ -234,14 +236,21 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
   }
 
   switch (filters.sort) {
-    case "title":
-      pipeline = pipeline.sort(field("title").ascending());
-      break;
     case "rating":
-      pipeline = pipeline.sort(field("averageRating").descending());
+      pipeline = pipeline.sort(
+        field("averageRating").descending(),
+        field("title").ascending()
+      );
       break;
     case "likes":
-      pipeline = pipeline.sort(field("likes").descending());
+      pipeline = pipeline.sort(
+        field("likes").descending(),
+        field("title").ascending()
+      );
+      break;
+    case "title":
+    default:
+      pipeline = pipeline.sort(field("title").ascending());
       break;
   }
 

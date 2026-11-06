@@ -31,6 +31,7 @@ import {
   queryRecipes,
   type Recipe,
   type RecipeFilters,
+  type RecipeSort,
 } from "@/firebase/data";
 import {
   Empty,
@@ -78,11 +79,16 @@ function isSafeImageUrl(url: string | undefined): url is string {
   );
 }
 
+const DEFAULT_SORT: RecipeSort = "title";
+
+function parseSortParam(raw: string | null): RecipeSort {
+  return raw === "rating" || raw === "likes" ? raw : DEFAULT_SORT;
+}
+
 function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
   const url = new URL(requestUrl);
   const rawMinRating = Number(url.searchParams.get("minRating"));
   const rawTags = url.searchParams.get("tags");
-  const rawSort = url.searchParams.get("sort");
 
   return {
     searchTerm: url.searchParams.get("q")?.trim() || undefined,
@@ -91,7 +97,7 @@ function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
         ? rawMinRating
         : undefined,
     tags: rawTags ? rawTags.split(",").filter(Boolean) : undefined,
-    sort: rawSort && rawSort !== "none" ? rawSort : undefined,
+    sort: parseSortParam(url.searchParams.get("sort")),
   };
 }
 
@@ -214,7 +220,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
 
   const minRatingParam = searchParams.get("minRating");
   const tagsParam = searchParams.get("tags");
-  const sortParam = searchParams.get("sort");
+  const sortParam = parseSortParam(searchParams.get("sort"));
 
   return (
     <Form
@@ -231,7 +237,9 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         <input type="hidden" name="minRating" value={minRatingParam} />
       )}
       {tagsParam && <input type="hidden" name="tags" value={tagsParam} />}
-      {sortParam && <input type="hidden" name="sort" value={sortParam} />}
+      {sortParam !== DEFAULT_SORT && (
+        <input type="hidden" name="sort" value={sortParam} />
+      )}
 
       <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
@@ -272,12 +280,11 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   );
 };
 
-const SORT_OPTIONS = [
-  { value: "none", label: "Default" },
-  { value: "rating", label: "Rating" },
+const SORT_OPTIONS: ReadonlyArray<{ value: RecipeSort; label: string }> = [
   { value: "title", label: "Alphabetical" },
+  { value: "rating", label: "Rating" },
   { value: "likes", label: "Likes" },
-] as const;
+];
 
 const FilterPanel: FC<{
   isOpen: boolean;
@@ -298,9 +305,7 @@ const FilterPanel: FC<{
       : searchParams;
 
   const queryText = activeSearchParams.get("q") || "";
-  const sortBy =
-    (activeSearchParams.get("sort") as "rating" | "title" | "likes" | "none") ||
-    "none";
+  const sortBy = parseSortParam(activeSearchParams.get("sort"));
   const selectedTags =
     activeSearchParams.get("tags")?.split(",").filter(Boolean) || [];
   const minRating = Number(activeSearchParams.get("minRating")) || 0;
@@ -308,7 +313,7 @@ const FilterPanel: FC<{
   const submitFilterUpdates = (updates: {
     minRating?: number;
     tags?: string[];
-    sort?: string;
+    sort?: RecipeSort;
   }) => {
     const nextParams = new URLSearchParams(activeSearchParams);
 
@@ -329,7 +334,7 @@ const FilterPanel: FC<{
     }
 
     if (updates.sort !== undefined) {
-      if (updates.sort && updates.sort !== "none") {
+      if (updates.sort !== DEFAULT_SORT) {
         nextParams.set("sort", updates.sort);
       } else {
         nextParams.delete("sort");
@@ -344,9 +349,7 @@ const FilterPanel: FC<{
   };
 
   const hasPanelFilters =
-    minRating > 0 ||
-    selectedTags.length > 0 ||
-    Boolean(sortBy && sortBy !== "none");
+    minRating > 0 || selectedTags.length > 0 || sortBy !== DEFAULT_SORT;
 
   const resetHref = queryText
     ? `${recipesPath}?q=${encodeURIComponent(queryText)}`
@@ -547,21 +550,23 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const recipesPath = href("/recipes");
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const hasFilters = Array.from(searchParams.entries()).some(
-    ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
-  );
+  const activeQueryText = searchParams.get("q")?.trim() || "";
+  const activeMinRating = Number(searchParams.get("minRating")) || 0;
+  const activeTags =
+    searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const activeSort = parseSortParam(searchParams.get("sort"));
+  const hasFilters =
+    Boolean(activeQueryText) ||
+    activeMinRating > 0 ||
+    activeTags.length > 0 ||
+    activeSort !== DEFAULT_SORT;
 
   if ((!recipes || recipes.length === 0) && !hasFilters) {
     return <ZeroState ssr={ssr} />;
   }
 
-  const activeQueryText = searchParams.get("q")?.trim() || "";
-  const activeMinRating = Number(searchParams.get("minRating")) || 0;
-  const activeTags =
-    searchParams.get("tags")?.split(",").filter(Boolean) || [];
-  const activeSort = searchParams.get("sort") || "none";
   const activeSortLabel =
-    activeSort !== "none"
+    activeSort !== DEFAULT_SORT
       ? SORT_OPTIONS.find((opt) => opt.value === activeSort)?.label
       : undefined;
 
