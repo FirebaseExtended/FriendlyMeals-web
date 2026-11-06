@@ -727,7 +727,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                   asChild
                   variant="outline"
                   className={cn(
-                    "rounded-xl bg-card p-5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                    "rounded-xl bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
                     ssr && "ssr"
                   )}
                 >
@@ -749,7 +749,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                         default="none"
                         share="vt-recipe-title"
                       >
-                        <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-primary transition-colors">
+                        <ItemTitle className="mb-1.5 text-base font-semibold text-foreground group-hover/item:text-primary transition-colors">
                           {recipe.title}
                         </ItemTitle>
                       </ViewTransition>
@@ -781,7 +781,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                         )}
                       </div>
                       {recipe.tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
                           {recipe.tags.map((tag) => (
                             <span
                               key={tag}
