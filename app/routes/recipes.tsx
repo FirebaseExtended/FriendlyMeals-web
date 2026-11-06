@@ -80,6 +80,52 @@ function isSafeImageUrl(url: string | undefined): url is string {
   );
 }
 
+function parseDurationMinutes(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const text = raw.trim();
+  if (!text) return null;
+
+  let total = 0;
+  let matched = false;
+
+  const hoursMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/i);
+  if (hoursMatch) {
+    total += parseFloat(hoursMatch[1]) * 60;
+    matched = true;
+  }
+
+  const minsMatch = text.match(
+    /(?:\d+(?:\.\d+)?\s*[-\u2013]\s*)?(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/i
+  );
+  if (minsMatch) {
+    total += parseFloat(minsMatch[1]);
+    matched = true;
+  }
+
+  if (matched) {
+    return Math.round(total);
+  }
+
+  const bareNumber = text.match(/^(\d+(?:\.\d+)?)$/);
+  return bareNumber ? Math.round(parseFloat(bareNumber[1])) : null;
+}
+
+function formatTotalMinutes(
+  prepTime: string | undefined,
+  cookTime: string | undefined
+): string | null {
+  const prepMins = parseDurationMinutes(prepTime);
+  const cookMins = parseDurationMinutes(cookTime);
+  if (prepMins === null && cookMins === null) {
+    return null;
+  }
+  const total = (prepMins ?? 0) + (cookMins ?? 0);
+  if (total <= 0) {
+    return null;
+  }
+  return `${total} ${total === 1 ? "minute" : "minutes"}`;
+}
+
 const DEFAULT_SORT: RecipeSort = "newest";
 
 function parseSortParam(raw: string | null): RecipeSort {
@@ -665,7 +711,12 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
               </div>
             </ViewTransition>
           ) : (
-            recipes.map((recipe: Recipe) => (
+            recipes.map((recipe: Recipe) => {
+              const totalMinutesLabel = formatTotalMinutes(
+                recipe.prepTime,
+                recipe.cookTime
+              );
+              return (
               <ViewTransition
                 key={recipe.id}
                 default="none"
@@ -718,16 +769,8 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                             {recipe.likes === 1 ? "like" : "likes"}
                           </span>
                         )}
-                        {(recipe.prepTime || recipe.cookTime) && (
-                          <span>
-                            •{" "}
-                            {[
-                              recipe.prepTime && `Prep ${recipe.prepTime}`,
-                              recipe.cookTime && `Cook ${recipe.cookTime}`,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
+                        {totalMinutesLabel && (
+                          <span>• {totalMinutesLabel}</span>
                         )}
                       </div>
                       {recipe.tags?.length > 0 && (
@@ -749,7 +792,8 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                   </Link>
                 </Item>
               </ViewTransition>
-            ))
+              );
+            })
           )}
         </ItemGroup>
       </section>
