@@ -65,7 +65,9 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
   const redirectToSignIn = () => {
     const recipePath = href("/recipes/:recipeId", { recipeId: recipe.id });
-    navigate(`${href("/login")}?redirectTo=${encodeURIComponent(recipePath)}`);
+    void navigate(
+      `${href("/login")}?redirectTo=${encodeURIComponent(recipePath)}`
+    );
   };
 
   const handleLikeToggle = () => {
@@ -75,7 +77,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
       return;
     }
 
-    fetcher.submit(
+    void fetcher.submit(
       {
         intent: "like",
         nextLiked: String(!optimisticLiked),
@@ -91,7 +93,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
       return;
     }
 
-    fetcher.submit(
+    void fetcher.submit(
       {
         intent: "rate",
         rating: String(newRating),
@@ -103,7 +105,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const handleDelete = () => {
     if (!user || user.uid !== recipe.authorId) return;
     if (confirm("Are you sure you want to delete this recipe?")) {
-      fetcher.submit({ intent: "delete" }, { method: "post" });
+      void fetcher.submit({ intent: "delete" }, { method: "post" });
     }
   };
 
@@ -111,7 +113,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const activeRating = hoveredStar || displayRating;
   const steps = Array.isArray(recipe.instructions) ? recipe.instructions : [];
   const servingsDisplay =
-    String(recipe.servings ?? "")
+    (recipe.servings ?? "")
       .replace(/\s*servings?\b/i, "")
       .trim() || recipe.servings;
 

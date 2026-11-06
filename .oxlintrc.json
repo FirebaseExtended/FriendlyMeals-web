@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "jsx-a11y"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "dist",
+    "build",
+    ".react-router"
+  ],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "react/purity": "error",
+    "react/refs": "error",
+    "react/immutability": "error",
+    "react/set-state-in-render": "error",
+    "react/static-components": "error",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "unicorn/no-array-sort": "off",
+    "typescript/consistent-return": "off",
+    "typescript/no-unsafe-type-assertion": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "app/root.tsx",
+        "app/routes/**/*.{ts,tsx}",
+        "app/components/Layout.tsx",
+        "app/components/ui/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
+}

@@ -247,7 +247,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         nextParams.delete("q");
       }
       const hadQueryBefore = Boolean(searchParams.get("q"));
-      submit(nextParams, {
+      void submit(nextParams, {
         method: "get",
         action: recipesPath,
         replace: hadQueryBefore,
@@ -384,7 +384,7 @@ const FilterPanel: FC<{
       }
     }
 
-    submit(nextParams, {
+    void submit(nextParams, {
       method: "get",
       action: recipesPath,
       replace: true,
@@ -606,7 +606,7 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
     } else {
       nextParams.delete("sort");
     }
-    submit(nextParams, {
+    void submit(nextParams, {
       method: "get",
       action: recipesPath,
       replace: true,

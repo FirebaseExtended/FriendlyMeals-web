@@ -52,7 +52,7 @@ export default function ProtectedLayout() {
   useEffect(() => {
     if (authReady && !user && !isLeaving) {
       const redirectTo = `${location.pathname}${location.search}`;
-      navigate(
+      void navigate(
         `${href("/login")}?redirectTo=${encodeURIComponent(redirectTo)}`,
         { replace: true }
       );

@@ -162,7 +162,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
 
     const uid = user?.uid ?? (await waitForAuthReady())?.uid;
     if (!uid) {
-      navigate(
+      await navigate(
         `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
       );
       return;
@@ -172,7 +172,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
       setErrorMessage(null);
       setLoadingMessage("Publishing recipe");
       const savedRecipeId = await publishRecipe(uid, generatedRecipe);
-      navigate(href("/recipes/:recipeId", { recipeId: savedRecipeId }));
+      await navigate(href("/recipes/:recipeId", { recipeId: savedRecipeId }));
     } catch (error) {
       reportClientError(error, { action: "publishRecipe" });
       setErrorMessage(
@@ -187,7 +187,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
 
     const uid = user?.uid ?? (await waitForAuthReady())?.uid;
     if (!uid) {
-      navigate(
+      await navigate(
         `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
       );
       return;
@@ -199,7 +199,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
       const { seedSampleRecipes } = await import("@/firebase/seed");
       await seedSampleRecipes(uid);
       setHasSeeded(true);
-      navigate(href("/recipes"));
+      await navigate(href("/recipes"));
     } catch (error) {
       reportClientError(error, { action: "seedSampleRecipes" });
       setErrorMessage(

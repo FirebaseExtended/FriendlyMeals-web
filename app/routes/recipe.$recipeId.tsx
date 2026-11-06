@@ -93,7 +93,8 @@ export async function clientAction({ request, params }: Route.ClientActionArgs) 
   }
 
   const formData = await request.formData();
-  const intent = String(formData.get("intent") || "");
+  const rawIntent = formData.get("intent");
+  const intent = typeof rawIntent === "string" ? rawIntent : "";
 
   try {
     if (intent === "like") {

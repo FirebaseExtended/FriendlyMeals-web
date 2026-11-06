@@ -34,9 +34,10 @@ Before editing Firebase or React Router code, consult the matching skill under `
 ## Commands
 
 ```bash
-npm run dev                 # Start Vite + React Router SSR dev server
-npm run typecheck           # Run react-router typegen && tsc
-npm run lint                # Run ESLint
-npm run build               # Build client assets (hidden sourcemaps) + SSR server bundle
+npm run dev                 # Start Vite 8 + React Router SSR dev server
+npm run typecheck           # Run react-router typegen && tsc -b (TypeScript 7)
+npm run lint                # Run Oxlint (type-aware + React Compiler rules)
+npm run format              # Format files with Oxfmt
+npm run build               # Build client assets (Oxc React Compiler + hidden sourcemaps) + SSR server bundle
 npm run start               # Serve production SSR build locally
 ```

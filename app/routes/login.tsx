@@ -64,7 +64,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
 
   const handleAuthenticated = () => {
-    navigate(redirectTo, { replace: true });
+    void navigate(redirectTo, { replace: true });
   };
 
   const ui = getFirebaseUI();

@@ -35,7 +35,9 @@ export function SignInAuthForm(props: SignInAuthFormProps) {
   async function onSubmit(values: SignInAuthFormSchema) {
     try {
       const credential = await action(values);
-      props.onSignIn?.(credential);
+      if (credential) {
+        props.onSignIn?.(credential);
+      }
     } catch (error) {
       const message =
         error instanceof FirebaseUIError ? error.message : String(error);

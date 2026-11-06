@@ -283,7 +283,9 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
   pipeline = pipeline.limit(50);
 
   const { results } = await execute(pipeline);
-  return results.map((result) => toPlainRecipe(result.id, result.data()));
+  return results.flatMap((result) =>
+    result.id ? [toPlainRecipe(result.id, result.data())] : []
+  );
 }
 
 export function formatRecipeMarkdown(recipe: Recipe): string {
@@ -297,7 +299,7 @@ export function formatRecipeMarkdown(recipe: Recipe): string {
     recipe.ingredients.length > 0
       ? recipe.ingredients.map((item) => `- ${item}`).join("\n")
       : "- None listed";
-  const rawServings = String(recipe.servings ?? "").trim();
+  const rawServings = (recipe.servings ?? "").trim();
   const servingsLabel = /^\d+$/.test(rawServings)
     ? `${rawServings} servings`
     : rawServings;

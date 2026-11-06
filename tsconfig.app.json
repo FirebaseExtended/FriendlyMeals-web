@@ -8,6 +8,10 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "types": [
+      "node",
+      "vite/client"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     /* Bundler mode */
@@ -29,7 +33,6 @@
       ".",
       "./.react-router/types"
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./app/*"
