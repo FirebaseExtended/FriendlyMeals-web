@@ -1230,13 +1230,12 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
               </div>
               {activeQueryText && (
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                  <Button asChild size="sm" className="gap-1.5">
+                  <Button asChild size="sm">
                     <Link
                       to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
                       state={returnState}
                     >
-                      <Sparkles aria-hidden="true" className="size-3.5" />
-                      <span>Generate a "{activeQueryText}" recipe</span>
+                      Generate a "{activeQueryText}" recipe
                     </Link>
                   </Button>
                 </div>

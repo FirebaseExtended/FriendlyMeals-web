@@ -8,7 +8,6 @@ import {
   useMatch,
   useNavigation,
 } from "react-router";
-import { Flame, Sparkles } from "lucide-react";
 import type { Route } from "./+types/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/firebase/auth";
@@ -60,10 +59,9 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
             >
               <Link
                 to={href("/recipes")}
-                className="inline-flex w-fit items-center gap-2 font-display text-2xl sm:text-[1.65rem] font-normal tracking-wide hover:opacity-85 transition-opacity"
+                className="inline-flex w-fit items-center font-display text-2xl sm:text-[1.65rem] font-normal tracking-wide hover:opacity-85 transition-opacity"
               >
-                <Flame aria-hidden="true" className="w-5 h-5 text-primary" />
-                <span>Friendly Meals</span>
+                Friendly Meals
               </Link>
             </ViewTransition>
 
@@ -76,20 +74,13 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
                 share="vt-generate-cta"
               >
                 {!authReady ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled
-                    className="w-28 gap-1.5"
-                  >
-                    <Sparkles aria-hidden="true" className="size-3.5" />
-                    <span>Generate</span>
+                  <Button type="button" size="sm" disabled className="w-28">
+                    Generate
                   </Button>
                 ) : (
-                  <Button asChild size="sm" className="w-28 gap-1.5">
+                  <Button asChild size="sm" className="w-28">
                     <Link to={href("/generate")} state={generateReturnState}>
-                      <Sparkles aria-hidden="true" className="size-3.5" />
-                      <span>Generate</span>
+                      Generate
                     </Link>
                   </Button>
                 )}

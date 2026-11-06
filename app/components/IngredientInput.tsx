@@ -1,5 +1,4 @@
 import { useState, ViewTransition, type FC } from "react";
-import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn, GENERATE_CTA_TRANSITION_NAME } from "@/lib/utils";
@@ -57,11 +56,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
       disabled={busy || submitDisabled}
       className={cn("rounded-xl px-4 gap-1.5", busy && "disabled:opacity-100")}
     >
-      {busy ? (
-        <Spinner className="size-4" />
-      ) : (
-        <Sparkles aria-hidden="true" className="size-3.5" />
-      )}
+      {busy && <Spinner className="size-4" />}
       <span>
         {busy
           ? typeof isLoading === "string"
