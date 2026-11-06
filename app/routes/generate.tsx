@@ -1,5 +1,13 @@
 import { useState, ViewTransition } from "react";
-import { href, Link, useNavigate, useSearchParams } from "react-router";
+import {
+  data,
+  href,
+  Link,
+  redirect,
+  useFetcher,
+  useSearchParams,
+  type ShouldRevalidateFunctionArgs,
+} from "react-router";
 import { ArrowLeft, Database, Sparkles } from "lucide-react";
 import type { Route } from "./+types/generate";
 import { IngredientInput } from "@/components/IngredientInput";
@@ -19,20 +27,100 @@ import { useBackToRecipesHref } from "@/lib/navigation";
 import { useWasServerRendered } from "@/lib/ssr";
 import { cn, NAV_RECIPES_TRANSITION_NAME } from "@/lib/utils";
 
+export const handle = { hideHeader: true };
+
 const SEED_BUTTON_MAX_RECIPES = 15;
 
-export async function loader() {
+async function loadGenerateData() {
   const recipeCount = await getRecipeCount(SEED_BUTTON_MAX_RECIPES).catch(
     () => SEED_BUTTON_MAX_RECIPES
   );
   return { showSeedButton: recipeCount < SEED_BUTTON_MAX_RECIPES };
 }
 
+export async function loader() {
+  return loadGenerateData();
+}
+
 export async function clientLoader() {
-  const recipeCount = await getRecipeCount(SEED_BUTTON_MAX_RECIPES).catch(
-    () => SEED_BUTTON_MAX_RECIPES
-  );
-  return { showSeedButton: recipeCount < SEED_BUTTON_MAX_RECIPES };
+  return loadGenerateData();
+}
+
+export function shouldRevalidate({
+  actionResult,
+  currentUrl,
+  nextUrl,
+  formMethod,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  if (formMethod && formMethod.toLowerCase() !== "get") {
+    if (
+      actionResult &&
+      typeof actionResult === "object" &&
+      "ok" in actionResult &&
+      actionResult.ok === false
+    ) {
+      return false;
+    }
+    return defaultShouldRevalidate;
+  }
+  return currentUrl.pathname !== nextUrl.pathname;
+}
+
+export async function clientAction({ request }: Route.ClientActionArgs) {
+  const user = await waitForAuthReady();
+  if (!user) {
+    return redirect(
+      `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
+    );
+  }
+
+  const formData = await request.formData();
+  const rawIntent = formData.get("intent");
+  const intent = typeof rawIntent === "string" ? rawIntent : "";
+
+  if (intent === "publish") {
+    const rawRecipe = formData.get("recipe");
+    if (typeof rawRecipe !== "string") {
+      return data(
+        { ok: false, error: "Missing recipe draft." },
+        { status: 400 }
+      );
+    }
+    try {
+      const recipe = JSON.parse(rawRecipe) as NewRecipeInput;
+      const savedRecipeId = await publishRecipe(user.uid, recipe);
+      return redirect(href("/recipes/:recipeId", { recipeId: savedRecipeId }));
+    } catch (error) {
+      reportClientError(error, { action: "publishRecipe" });
+      return data(
+        {
+          ok: false,
+          error: "Couldn't publish your recipe right now. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (intent === "seed") {
+    try {
+      const { seedSampleRecipes } = await import("@/firebase/seed.client");
+      await seedSampleRecipes(user.uid);
+      return redirect(href("/recipes"));
+    } catch (error) {
+      reportClientError(error, { action: "seedSampleRecipes" });
+      return data(
+        {
+          ok: false,
+          error: "Couldn't seed sample recipes right now. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  return data({ ok: false, error: "Unsupported action." }, { status: 400 });
 }
 
 export function meta() {
@@ -107,10 +195,8 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
   const prefillIngredients = searchParams.get("ingredients")?.trim() ?? "";
 
-  const [loadingMessage, setLoadingMessage] = useState<
-    "Generating recipe" | "Publishing recipe" | "Seeding recipes" | null
-  >(null);
-  const [hasSeeded, setHasSeeded] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationRevision, setGenerationRevision] = useState(0);
   const [generatedRecipe, setGeneratedRecipe] = useState<NewRecipeInput | null>(
     null
   );
@@ -120,12 +206,19 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isInputExpanded, setIsInputExpanded] = useState(true);
-  const navigate = useNavigate();
 
-  const isGenerating = loadingMessage === "Generating recipe";
-  const isPublishing = loadingMessage === "Publishing recipe";
-  const isSeeding = loadingMessage === "Seeding recipes";
+  const actionFetcher = useFetcher<typeof clientAction>({
+    key: `generate-action-${generationRevision}`,
+  });
+  const pendingIntent = actionFetcher.formData?.get("intent");
+  const isPublishing = pendingIntent === "publish";
+  const isSeeding = pendingIntent === "seed";
   const isBusy = isGenerating || isPublishing || isSeeding;
+
+  const activeError =
+    errorMessage ??
+    (actionFetcher.state === "idle" ? actionFetcher.data?.error : null) ??
+    null;
 
   const handleGenerateRecipe = async (
     ingredients: string,
@@ -138,7 +231,8 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
 
     try {
       setErrorMessage(null);
-      setLoadingMessage("Generating recipe");
+      setGenerationRevision((revision) => revision + 1);
+      setIsGenerating(true);
       const recipe = await generateStructuredJsonRecipe(
         trimmedIngredients,
         cuisineType
@@ -150,7 +244,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
       reportClientError(error, { action: "generateStructuredJsonRecipe" });
       setErrorMessage(formatGenerationError(error));
     } finally {
-      setLoadingMessage(null);
+      setIsGenerating(false);
     }
   };
 
@@ -159,56 +253,19 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
     void handleGenerateRecipe(lastPrompt.ingredients, lastPrompt.cuisineType);
   };
 
-  const handlePublish = async () => {
+  const handlePublish = () => {
     if (!generatedRecipe || isBusy) return;
-
-    const uid = user?.uid ?? (await waitForAuthReady())?.uid;
-    if (!uid) {
-      await navigate(
-        `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
-      );
-      return;
-    }
-
-    try {
-      setErrorMessage(null);
-      setLoadingMessage("Publishing recipe");
-      const savedRecipeId = await publishRecipe(uid, generatedRecipe);
-      await navigate(href("/recipes/:recipeId", { recipeId: savedRecipeId }));
-    } catch (error) {
-      reportClientError(error, { action: "publishRecipe" });
-      setErrorMessage(
-        "Couldn't publish your recipe right now. Please try again."
-      );
-      setLoadingMessage(null);
-    }
+    setErrorMessage(null);
+    void actionFetcher.submit(
+      { intent: "publish", recipe: JSON.stringify(generatedRecipe) },
+      { method: "post" }
+    );
   };
 
-  const handleSeedRecipes = async () => {
+  const handleSeedRecipes = () => {
     if (isBusy) return;
-
-    const uid = user?.uid ?? (await waitForAuthReady())?.uid;
-    if (!uid) {
-      await navigate(
-        `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
-      );
-      return;
-    }
-
-    try {
-      setErrorMessage(null);
-      setLoadingMessage("Seeding recipes");
-      const { seedSampleRecipes } = await import("@/firebase/seed.client");
-      await seedSampleRecipes(uid);
-      setHasSeeded(true);
-      await navigate(href("/recipes"));
-    } catch (error) {
-      reportClientError(error, { action: "seedSampleRecipes" });
-      setErrorMessage(
-        "Couldn't seed sample recipes right now. Please try again."
-      );
-      setLoadingMessage(null);
-    }
+    setErrorMessage(null);
+    void actionFetcher.submit({ intent: "seed" }, { method: "post" });
   };
 
   const previewRecipe: Recipe | null = generatedRecipe
@@ -233,6 +290,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
         >
           <Link
             to={backHref}
+            prefetch="intent"
             className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft aria-hidden="true" className="w-4 h-4" />
@@ -271,16 +329,16 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
           ssr={isSsr}
           handleSubmit={handleGenerateRecipe}
         />
-
-        {errorMessage && (
-          <div
-            role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-          >
-            {errorMessage}
-          </div>
-        )}
       </section>
+
+      {activeError && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {activeError}
+        </div>
+      )}
 
       {showComposer && isGenerating && <RecipeSkeleton />}
 
@@ -343,6 +401,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
                 </Button>
               )}
               <Button
+                type="button"
                 onClick={handlePublish}
                 disabled={isBusy}
                 size="sm"
@@ -363,15 +422,6 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
             </div>
           </header>
 
-          {!showComposer && errorMessage && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-            >
-              {errorMessage}
-            </div>
-          )}
-
           {isGenerating ? (
             <RecipeSkeleton />
           ) : (
@@ -380,7 +430,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      {loaderData.showSeedButton && !hasSeeded && (
+      {loaderData.showSeedButton && (
         <footer
           className={cn(
             "mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 text-xs text-muted-foreground",

@@ -6,6 +6,7 @@ import {
   Outlet,
   useLocation,
   useMatch,
+  useMatches,
   useNavigation,
 } from "react-router";
 import type { Route } from "./+types/Layout";
@@ -52,12 +53,14 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
   const { user, authReady } = useAuthUser();
   const location = useLocation();
   const navigation = useNavigation();
+  const matches = useMatches();
   const recipesPath = href("/recipes");
   const onRecipes = Boolean(useMatch(recipesPath));
-  const onGenerate = Boolean(useMatch(href("/generate")));
-  const onRecipeDetail = Boolean(useMatch("/recipes/:recipeId"));
   const onLogin = Boolean(useMatch(href("/login")));
-  const showHeader = forceHeader || (!onGenerate && !onRecipeDetail);
+  const hideHeaderFromRoute = matches.some((match) =>
+    Boolean((match.handle as { hideHeader?: boolean } | undefined)?.hideHeader)
+  );
+  const showHeader = forceHeader || !hideHeaderFromRoute;
 
   const currentRecipesSearch =
     onRecipes &&
@@ -89,6 +92,7 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
             >
               <Link
                 to={href("/recipes")}
+                prefetch="intent"
                 className="inline-flex w-fit items-center font-display text-2xl sm:text-[1.65rem] font-normal tracking-wide hover:opacity-85 transition-opacity"
               >
                 Friendly Meals
@@ -109,7 +113,11 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
                   </Button>
                 ) : (
                   <Button asChild size="sm" className="w-28">
-                    <Link to={href("/generate")} state={generateReturnState}>
+                    <Link
+                      to={href("/generate")}
+                      state={generateReturnState}
+                      prefetch="intent"
+                    >
                       Generate
                     </Link>
                   </Button>
@@ -117,7 +125,9 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
               </ViewTransition>
             ) : (
               <Button asChild variant="outline" size="sm" className="w-28">
-                <Link to={href("/login")}>Sign in</Link>
+                <Link to={href("/login")} prefetch="intent">
+                  Sign in
+                </Link>
               </Button>
             )}
           </nav>
@@ -176,7 +186,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         <p className="text-muted-foreground">{details}</p>
         <div className="flex justify-center pt-2">
           <Button asChild>
-            <Link to={href("/recipes")}>Browse Recipes</Link>
+            <Link to={href("/recipes")} prefetch="intent">
+              Browse Recipes
+            </Link>
           </Button>
         </div>
       </div>
