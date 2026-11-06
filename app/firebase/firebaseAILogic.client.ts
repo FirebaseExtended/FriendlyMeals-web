@@ -5,7 +5,7 @@ import {
   ThinkingLevel,
 } from "firebase/ai";
 import { getFirebaseAI } from "./firebase";
-import { getRecipeGenerationSettings } from "./remoteConfig";
+import { getRecipeGenerationSettings } from "./remoteConfig.client";
 import type { InstructionStep, NewRecipeInput } from "./data";
 
 const recipeSchema = Schema.object({
@@ -14,8 +14,7 @@ const recipeSchema = Schema.object({
       description: "Appetizing recipe title",
     }),
     ingredients: Schema.array({
-      description:
-        "Ingredients with quantities, e.g. '2 ripe bananas, sliced'",
+      description: "Ingredients with quantities, e.g. '2 ripe bananas, sliced'",
       items: Schema.string(),
     }),
     instructions: Schema.array({
@@ -93,7 +92,12 @@ export async function generateStructuredJsonRecipe(
           title: step.title.trim(),
           content: step.content.trim(),
         }))
+        .filter((step) => step.title.length > 0 && step.content.length > 0)
     : [];
+
+  if (instructions.length === 0) {
+    throw new Error("Recipe generation incomplete (no valid cooking steps).");
+  }
 
   return {
     title: parsed.title || "Chef's Special",

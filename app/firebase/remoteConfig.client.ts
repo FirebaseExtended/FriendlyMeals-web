@@ -35,7 +35,9 @@ export async function getRecipeGenerationSettings(): Promise<RecipeGenerationSet
   try {
     if (!remoteConfigInstance) {
       remoteConfigInstance = getRemoteConfig(firebaseApp);
-      remoteConfigInstance.settings.minimumFetchIntervalMillis = import.meta.env.DEV
+      remoteConfigInstance.settings.fetchTimeoutMillis = 3_000;
+      remoteConfigInstance.settings.minimumFetchIntervalMillis = import.meta.env
+        .DEV
         ? 10_000
         : 3_600_000;
       remoteConfigInstance.defaultConfig = {
@@ -62,9 +64,4 @@ export async function getRecipeGenerationSettings(): Promise<RecipeGenerationSet
       systemInstruction: DEFAULT_RECIPE_SYSTEM_PROMPT,
     };
   }
-}
-
-export async function getRecipeSystemPrompt(): Promise<string> {
-  const { systemInstruction } = await getRecipeGenerationSettings();
-  return systemInstruction;
 }

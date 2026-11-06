@@ -6,7 +6,7 @@ import { IngredientInput } from "@/components/IngredientInput";
 import RecipeDetail from "@/components/Recipe";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { generateStructuredJsonRecipe } from "@/firebase/firebaseAILogic";
+import { generateStructuredJsonRecipe } from "@/firebase/firebaseAILogic.client";
 import {
   getRecipeCount,
   publishRecipe,
@@ -198,7 +198,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
     try {
       setErrorMessage(null);
       setLoadingMessage("Seeding recipes");
-      const { seedSampleRecipes } = await import("@/firebase/seed");
+      const { seedSampleRecipes } = await import("@/firebase/seed.client");
       await seedSampleRecipes(uid);
       setHasSeeded(true);
       await navigate(href("/recipes"));

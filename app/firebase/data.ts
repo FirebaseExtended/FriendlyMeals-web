@@ -27,20 +27,6 @@ import {
 } from "firebase/firestore/pipelines";
 import { firebaseApp } from "./firebase";
 
-export interface Review {
-  recipeId: string;
-  userId: string;
-  rating: number;
-  text?: string;
-  id?: string;
-}
-
-export interface Like {
-  recipeId: string;
-  userId: string;
-  id?: string;
-}
-
 export interface InstructionStep {
   title: string;
   content: string;

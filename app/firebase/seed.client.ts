@@ -23,10 +23,19 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "apricot-cardamom-oat-crisp",
     likesCount: 9,
     reviews: [
-      { rating: 5, text: "The cardamom in the oat topping makes the whole kitchen smell incredible." },
-      { rating: 4, text: "Used slightly underripe apricots and it baked up jammy without turning mushy." },
+      {
+        rating: 5,
+        text: "The cardamom in the oat topping makes the whole kitchen smell incredible.",
+      },
+      {
+        rating: 4,
+        text: "Used slightly underripe apricots and it baked up jammy without turning mushy.",
+      },
       { rating: 5, text: "So good warm with vanilla bean ice cream." },
-      { rating: 4, text: "Cut the brown sugar slightly and loved the tartness." },
+      {
+        rating: 4,
+        text: "Cut the brown sugar slightly and loved the tartness.",
+      },
     ],
     recipe: {
       title: "Apricot Cardamom Oat Crisp",
@@ -75,9 +84,15 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "baja-crispy-fish-tacos",
     likesCount: 15,
     reviews: [
-      { rating: 5, text: "Seltzer in the batter stayed shatteringly crisp even under the slaw." },
+      {
+        rating: 5,
+        text: "Seltzer in the batter stayed shatteringly crisp even under the slaw.",
+      },
       { rating: 5, text: "Best weeknight fish tacos I have made at home." },
-      { rating: 5, text: "Chipotle lime crema goes on everything in our house now." },
+      {
+        rating: 5,
+        text: "Chipotle lime crema goes on everything in our house now.",
+      },
       { rating: 4, text: "Worked great with Pacific cod cut into strips." },
       { rating: 5, text: "Restaurant quality!" },
     ],
@@ -129,10 +144,19 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "brown-butter-sage-gnocchi",
     likesCount: 13,
     reviews: [
-      { rating: 5, text: "Pan-searing the gnocchi straight from the package instead of boiling is a game changer." },
-      { rating: 4, text: "Crispy outside, pillowy inside, and ready in 15 minutes." },
+      {
+        rating: 5,
+        text: "Pan-searing the gnocchi straight from the package instead of boiling is a game changer.",
+      },
+      {
+        rating: 4,
+        text: "Crispy outside, pillowy inside, and ready in 15 minutes.",
+      },
       { rating: 5, text: "Toasted hazelnuts on top took it over the top." },
-      { rating: 4, text: "Watch the butter closely so the milk solids toast instead of burn." },
+      {
+        rating: 4,
+        text: "Watch the butter closely so the milk solids toast instead of burn.",
+      },
     ],
     recipe: {
       title: "Brown Butter Sage Skillet Gnocchi",
@@ -179,9 +203,18 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "charred-broccoli-cheddar-potatoes",
     likesCount: 6,
     reviews: [
-      { rating: 3, text: "Tasty filling, though roasting the russets took closer to 70 minutes in my oven." },
-      { rating: 4, text: "Charring the broccoli florets first gives way better flavor than steaming." },
-      { rating: 3, text: "Solid comfort food side dish, needed a bit more sharp cheddar." },
+      {
+        rating: 3,
+        text: "Tasty filling, though roasting the russets took closer to 70 minutes in my oven.",
+      },
+      {
+        rating: 4,
+        text: "Charring the broccoli florets first gives way better flavor than steaming.",
+      },
+      {
+        rating: 3,
+        text: "Solid comfort food side dish, needed a bit more sharp cheddar.",
+      },
     ],
     recipe: {
       title: "Charred Broccoli & Sharp Cheddar Twice-Baked Potatoes",
@@ -229,11 +262,26 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "chili-crisp-dan-dan-noodles",
     likesCount: 17,
     reviews: [
-      { rating: 5, text: "Numbing Sichuan peppercorn + nutty tahini + chili crisp hits every single note." },
-      { rating: 5, text: "Better than our local noodle spot and comes together in 20 minutes." },
-      { rating: 5, text: "Subbed shiitake mushrooms for a vegetarian guest and everyone went back for seconds." },
-      { rating: 5, text: "Save extra noodle cooking water—it makes the sesame sauce cling like silk." },
-      { rating: 4, text: "Spicy! Cut the chili crisp in half if cooking for kids." },
+      {
+        rating: 5,
+        text: "Numbing Sichuan peppercorn + nutty tahini + chili crisp hits every single note.",
+      },
+      {
+        rating: 5,
+        text: "Better than our local noodle spot and comes together in 20 minutes.",
+      },
+      {
+        rating: 5,
+        text: "Subbed shiitake mushrooms for a vegetarian guest and everyone went back for seconds.",
+      },
+      {
+        rating: 5,
+        text: "Save extra noodle cooking water—it makes the sesame sauce cling like silk.",
+      },
+      {
+        rating: 4,
+        text: "Spicy! Cut the chili crisp in half if cooking for kids.",
+      },
       { rating: 5, text: "Instant staple." },
     ],
     recipe: {
@@ -285,8 +333,14 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "coconut-lime-red-lentil-dal",
     likesCount: 14,
     reviews: [
-      { rating: 5, text: "Blooming the mustard seeds and chilies at the end transforms humble pantry lentils." },
-      { rating: 5, text: "Creamy, bright from the lime, and freezes beautifully for lunches." },
+      {
+        rating: 5,
+        text: "Blooming the mustard seeds and chilies at the end transforms humble pantry lentils.",
+      },
+      {
+        rating: 5,
+        text: "Creamy, bright from the lime, and freezes beautifully for lunches.",
+      },
       { rating: 5, text: "Made this three weeks in a row already." },
       { rating: 5, text: "Pure comfort in one pot." },
     ],
@@ -338,10 +392,19 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "crispy-gochujang-tofu-bowls",
     likesCount: 12,
     reviews: [
-      { rating: 5, text: "Tearing the tofu into craggy chunks holds twice as much sticky gochujang glaze!" },
-      { rating: 4, text: "Quick pickled cucumbers balance the sweet heat nicely." },
+      {
+        rating: 5,
+        text: "Tearing the tofu into craggy chunks holds twice as much sticky gochujang glaze!",
+      },
+      {
+        rating: 4,
+        text: "Quick pickled cucumbers balance the sweet heat nicely.",
+      },
       { rating: 5, text: "Even my tofu-skeptic partner asked for this again." },
-      { rating: 4, text: "Baked at 425°F on convection instead of pan-frying and it came out super crisp." },
+      {
+        rating: 4,
+        text: "Baked at 425°F on convection instead of pan-frying and it came out super crisp.",
+      },
     ],
     recipe: {
       title: "Crispy Gochujang Tofu & Pickled Cucumber Bowls",
@@ -390,8 +453,14 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "espresso-banana-tiramisu",
     likesCount: 11,
     reviews: [
-      { rating: 5, text: "Ripe banana and dark espresso belong together—lighter than classic tiramisù too." },
-      { rating: 4, text: "Definitely chill it overnight so the savoiardi slice cleanly." },
+      {
+        rating: 5,
+        text: "Ripe banana and dark espresso belong together—lighter than classic tiramisù too.",
+      },
+      {
+        rating: 4,
+        text: "Definitely chill it overnight so the savoiardi slice cleanly.",
+      },
       { rating: 5, text: "Huge crowd-pleaser at dinner parties." },
     ],
     recipe: {
@@ -439,9 +508,18 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "garlic-herb-butter-steak-bites",
     likesCount: 10,
     reviews: [
-      { rating: 4, text: "Par-cooking the baby potatoes first guarantees everything finishes tender at the same time." },
-      { rating: 4, text: "Great sear in cast iron—let the skillet get smoking hot before dropping the sirloin." },
-      { rating: 3, text: "Cut my potatoes a bit too big so they needed extra time, otherwise delicious." },
+      {
+        rating: 4,
+        text: "Par-cooking the baby potatoes first guarantees everything finishes tender at the same time.",
+      },
+      {
+        rating: 4,
+        text: "Great sear in cast iron—let the skillet get smoking hot before dropping the sirloin.",
+      },
+      {
+        rating: 3,
+        text: "Cut my potatoes a bit too big so they needed extra time, otherwise delicious.",
+      },
       { rating: 4, text: "Fast, hearty weeknight dinner." },
     ],
     recipe: {
@@ -488,8 +566,14 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "golden-turmeric-chicken-rice-soup",
     likesCount: 8,
     reviews: [
-      { rating: 5, text: "Like classic chicken soup leveled up with ginger, turmeric, and lots of fresh dill." },
-      { rating: 4, text: "Saved us during cold season. Squeeze extra lemon at the table!" },
+      {
+        rating: 5,
+        text: "Like classic chicken soup leveled up with ginger, turmeric, and lots of fresh dill.",
+      },
+      {
+        rating: 4,
+        text: "Saved us during cold season. Squeeze extra lemon at the table!",
+      },
       { rating: 4, text: "Boneless thighs keep the meat super juicy." },
     ],
     recipe: {
@@ -539,10 +623,19 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "honey-harissa-sheet-pan-salmon",
     likesCount: 18,
     reviews: [
-      { rating: 5, text: "Crispy spiced chickpeas + buttery caramelized salmon on a single pan—minimal dishes!" },
-      { rating: 5, text: "That garlicky herb yogurt underneath ties the whole plate together." },
+      {
+        rating: 5,
+        text: "Crispy spiced chickpeas + buttery caramelized salmon on a single pan—minimal dishes!",
+      },
+      {
+        rating: 5,
+        text: "That garlicky herb yogurt underneath ties the whole plate together.",
+      },
       { rating: 5, text: "Our #1 weeknight company dinner." },
-      { rating: 5, text: "Works equally well with arctic char or steelhead trout." },
+      {
+        rating: 5,
+        text: "Works equally well with arctic char or steelhead trout.",
+      },
       { rating: 5, text: "Perfection." },
     ],
     recipe: {
@@ -592,8 +685,14 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "lemon-ricotta-blueberry-pancakes",
     likesCount: 7,
     reviews: [
-      { rating: 5, text: "Custardy inside like a soufflé without having to whip egg whites separately." },
-      { rating: 4, text: "Rubbing the lemon zest directly into the sugar makes the citrus pop." },
+      {
+        rating: 5,
+        text: "Custardy inside like a soufflé without having to whip egg whites separately.",
+      },
+      {
+        rating: 4,
+        text: "Rubbing the lemon zest directly into the sugar makes the citrus pop.",
+      },
       { rating: 5, text: "Weekend brunch favorite!" },
     ],
     recipe: {
@@ -643,9 +742,18 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "miso-maple-glazed-eggplant-soba",
     likesCount: 4,
     reviews: [
-      { rating: 3, text: "Loved the miso eggplant; rinse the buckwheat soba well in cold water or they clump." },
-      { rating: 2, text: "My globe eggplant took much longer to soften than Japanese eggplant." },
-      { rating: 3, text: "Good flavor profile, definitely seek out slender Japanese eggplants." },
+      {
+        rating: 3,
+        text: "Loved the miso eggplant; rinse the buckwheat soba well in cold water or they clump.",
+      },
+      {
+        rating: 2,
+        text: "My globe eggplant took much longer to soften than Japanese eggplant.",
+      },
+      {
+        rating: 3,
+        text: "Good flavor profile, definitely seek out slender Japanese eggplants.",
+      },
     ],
     recipe: {
       title: "Miso Maple Glazed Eggplant & Sesame Soba",
@@ -693,9 +801,15 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "sweet-potato-black-bean-enchiladas",
     likesCount: 8,
     reviews: [
-      { rating: 4, text: "Smoky roasted sweet potato with tangy queso fresco is such a great combo." },
+      {
+        rating: 4,
+        text: "Smoky roasted sweet potato with tangy queso fresco is such a great combo.",
+      },
       { rating: 5, text: "Great make-ahead vegetarian casserole." },
-      { rating: 4, text: "Warm the corn tortillas briefly in sauce first so they roll without cracking." },
+      {
+        rating: 4,
+        text: "Warm the corn tortillas briefly in sauce first so they roll without cracking.",
+      },
     ],
     recipe: {
       title: "Roasted Sweet Potato & Black Bean Enchiladas",
@@ -742,8 +856,14 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "one-pan-sun-dried-tomato-orzo",
     likesCount: 5,
     reviews: [
-      { rating: 4, text: "Toasting the dry orzo in the sun-dried tomato oil gives it risotto vibes in half the time." },
-      { rating: 3, text: "Stir every couple minutes near the end so the orzo doesn't stick to the bottom." },
+      {
+        rating: 4,
+        text: "Toasting the dry orzo in the sun-dried tomato oil gives it risotto vibes in half the time.",
+      },
+      {
+        rating: 3,
+        text: "Stir every couple minutes near the end so the orzo doesn't stick to the bottom.",
+      },
       { rating: 4, text: "Easy weeknight vegetarian dinner." },
     ],
     recipe: {
@@ -792,7 +912,10 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "papas-a-la-mexicana-tortillas",
     likesCount: 3,
     reviews: [
-      { rating: 4, text: "Humble pantry ingredients that taste like Saturday morning in CDMX." },
+      {
+        rating: 4,
+        text: "Humble pantry ingredients that taste like Saturday morning in CDMX.",
+      },
       { rating: 4, text: "Great with fried eggs on top too." },
     ],
     recipe: {
@@ -888,9 +1011,18 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "smoky-chipotle-chicken-tinga-tostadas",
     likesCount: 2,
     reviews: [
-      { rating: 2, text: "Way spicier than expected when using three whole chipotles!" },
-      { rating: 3, text: "Dialed back to one chipotle pepper the second time and liked the balance much more." },
-      { rating: 2, text: "Sauce reduced too fast—add an extra splash of stock." },
+      {
+        rating: 2,
+        text: "Way spicier than expected when using three whole chipotles!",
+      },
+      {
+        rating: 3,
+        text: "Dialed back to one chipotle pepper the second time and liked the balance much more.",
+      },
+      {
+        rating: 2,
+        text: "Sauce reduced too fast—add an extra splash of stock.",
+      },
     ],
     recipe: {
       title: "Smoky Chipotle Chicken Tinga Tostadas",
@@ -984,9 +1116,15 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
     slug: "warm-cinnamon-piloncillo-capirotada",
     likesCount: 2,
     reviews: [
-      { rating: 2, text: "Used soft sandwich bread instead of crusty bolillo rolls and it turned too soggy." },
+      {
+        rating: 2,
+        text: "Used soft sandwich bread instead of crusty bolillo rolls and it turned too soggy.",
+      },
       { rating: 1, text: "Way too sweet for my taste when served warm." },
-      { rating: 2, text: "Definitely toast the bread cubes dark first so they hold the spiced syrup." },
+      {
+        rating: 2,
+        text: "Definitely toast the bread cubes dark first so they hold the spiced syrup.",
+      },
     ],
     recipe: {
       title: "Warm Cinnamon Piloncillo Bread Pudding (Capirotada)",
@@ -1036,7 +1174,9 @@ async function resolveSeedRecipeId(
   userId: string
 ): Promise<string> {
   const defaultId = `seed-${slug}`;
-  const existing = await getDoc(doc(db, "recipes", defaultId)).catch(() => null);
+  const existing = await getDoc(doc(db, "recipes", defaultId)).catch(
+    () => null
+  );
   if (!existing || !existing.exists() || existing.data()?.authorId === userId) {
     return defaultId;
   }
