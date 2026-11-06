@@ -18,7 +18,7 @@ export function headers({ loaderHeaders }: Route.HeadersArgs) {
 // so hard navigations to /logout must hydrate in the browser to clear session state.
 export async function loader() {
   return data(null, {
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "private, no-store" },
   });
 }
 

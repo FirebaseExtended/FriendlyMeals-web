@@ -29,6 +29,10 @@ import { cn, NAV_RECIPES_TRANSITION_NAME } from "@/lib/utils";
 
 export const handle = { hideHeader: true };
 
+export function headers() {
+  return { "Cache-Control": "private, no-store" };
+}
+
 const SEED_BUTTON_MAX_RECIPES = 15;
 
 async function loadGenerateData() {
@@ -39,7 +43,9 @@ async function loadGenerateData() {
 }
 
 export async function loader() {
-  return loadGenerateData();
+  return data(await loadGenerateData(), {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }
 
 export async function clientLoader() {

@@ -10,6 +10,10 @@ import { getFirebaseUI, waitForAuthReady } from "@/firebase/auth";
 import { useWasServerRendered } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
 
+export function headers() {
+  return { "Cache-Control": "private, no-store" };
+}
+
 export function meta() {
   return [
     { title: "Sign In - Friendly Meals" },

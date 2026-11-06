@@ -1,12 +1,7 @@
-import { useEffect, useRef, useState } from "react";
 import { href, useNavigation, useSearchParams } from "react-router";
 import {
   DEFAULT_RECIPES_LIMIT,
-  doesPreviewMatchFilters,
   MAX_RECIPES_LIMIT,
-  subscribeToRecipesCollection,
-  type LiveRecipePreview,
-  type Recipe,
   type RecipeFilters,
   type RecipeSort,
 } from "@/firebase/data";
@@ -111,98 +106,4 @@ export function clearResolvedInFlightSearch(
   if (!aborted && inFlightCatalogSearch?.search === requestSearch) {
     inFlightCatalogSearch = null;
   }
-}
-
-interface CatalogSnapshotOwner {
-  recipes: Recipe[];
-}
-
-interface PendingRecipeEntry {
-  preview: LiveRecipePreview;
-  forLoaderData: CatalogSnapshotOwner;
-}
-
-export function usePendingNewRecipes(
-  loaderData: CatalogSnapshotOwner,
-  activeFilters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating"> & {
-    likedOnly?: boolean;
-  }
-): number {
-  const latestLoaderDataRef = useRef(loaderData);
-  const baselineIdsRef = useRef<Set<string>>(
-    new Set(loaderData.recipes.map((r) => r.id))
-  );
-  const [pendingEntries, setPendingEntries] = useState<PendingRecipeEntry[]>(
-    []
-  );
-
-  useEffect(() => {
-    latestLoaderDataRef.current = loaderData;
-    for (const recipe of loaderData.recipes) {
-      baselineIdsRef.current.add(recipe.id);
-    }
-  }, [loaderData]);
-
-  useEffect(() => {
-    return subscribeToRecipesCollection((event) => {
-      if (event.type === "initial") {
-        for (const id of event.ids) {
-          baselineIdsRef.current.add(id);
-        }
-        return;
-      }
-
-      const currentData = latestLoaderDataRef.current;
-
-      if (event.removedIds.length > 0) {
-        for (const id of event.removedIds) {
-          baselineIdsRef.current.delete(id);
-        }
-      }
-
-      setPendingEntries((prev) => {
-        const active = prev.filter(
-          (entry) =>
-            entry.forLoaderData === currentData &&
-            !event.removedIds.includes(entry.preview.id)
-        );
-        const byId = new Map(active.map((entry) => [entry.preview.id, entry]));
-
-        for (const modified of event.modified) {
-          const existing = byId.get(modified.id);
-          if (existing) {
-            byId.set(modified.id, {
-              preview: modified,
-              forLoaderData: existing.forLoaderData,
-            });
-          }
-        }
-
-        for (const added of event.added) {
-          if (!baselineIdsRef.current.has(added.id)) {
-            baselineIdsRef.current.add(added.id);
-            byId.set(added.id, {
-              preview: added,
-              forLoaderData: currentData,
-            });
-          }
-        }
-
-        return Array.from(byId.values());
-      });
-    });
-  }, []);
-
-  const loadedIds = new Set(loaderData.recipes.map((r) => r.id));
-  let count = 0;
-  for (const entry of pendingEntries) {
-    if (
-      entry.forLoaderData === loaderData &&
-      !loadedIds.has(entry.preview.id) &&
-      doesPreviewMatchFilters(entry.preview, activeFilters)
-    ) {
-      count += 1;
-    }
-  }
-  return count;
 }

@@ -25,8 +25,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     status: 200,
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Cache-Control":
-        "public, max-age=30, s-maxage=60, stale-while-revalidate=300",
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
     },
   });
 }

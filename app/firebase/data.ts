@@ -5,10 +5,8 @@ import {
   doc,
   getDoc,
   getFirestore,
-  onSnapshot,
   serverTimestamp,
   setDoc,
-  type Unsubscribe,
 } from "firebase/firestore";
 import {
   and,
@@ -72,22 +70,6 @@ export interface RecipesQueryResult {
   recipes: Recipe[];
   hasMore: boolean;
 }
-
-export interface LiveRecipePreview {
-  id: string;
-  title: string;
-  ingredients: string[];
-  tags: string[];
-}
-
-export type RecipesCollectionEvent =
-  | { type: "initial"; ids: string[] }
-  | {
-      type: "changes";
-      added: LiveRecipePreview[];
-      modified: LiveRecipePreview[];
-      removedIds: string[];
-    };
 
 // Firestore Enterprise requires a named database ID (here "friendlymeals", matching firebase.json)
 export const db = getFirestore(firebaseApp, "friendlymeals");
@@ -220,106 +202,6 @@ export async function isRecipeLikedByUser(
 ): Promise<boolean> {
   const snap = await getDoc(doc(db, "likes", `${recipeId}_${userId}`));
   return snap.exists();
-}
-
-function toLiveRecipePreview(
-  id: string,
-  raw: Record<string, unknown>
-): LiveRecipePreview {
-  return {
-    id,
-    title: typeof raw.title === "string" ? raw.title : "",
-    ingredients: Array.isArray(raw.ingredients)
-      ? raw.ingredients.filter(
-          (item): item is string => typeof item === "string"
-        )
-      : [],
-    tags: Array.isArray(raw.tags)
-      ? raw.tags.filter((item): item is string => typeof item === "string")
-      : [],
-  };
-}
-
-export function doesPreviewMatchFilters(
-  preview: LiveRecipePreview,
-  filters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating"> & {
-    likedOnly?: boolean;
-  }
-): boolean {
-  if (filters.likedOnly) {
-    // Newly published recipes haven't been liked by the current user yet
-    return false;
-  }
-
-  if (filters.minRating && filters.minRating > 0) {
-    // Newly published recipes start with 0 ratings until reviewed
-    return false;
-  }
-
-  if (filters.tags && filters.tags.length > 0) {
-    const hasAllSelectedTags = filters.tags.every((tag) =>
-      preview.tags.includes(tag)
-    );
-    if (!hasAllSelectedTags) {
-      return false;
-    }
-  }
-
-  const trimmedSearch = filters.searchTerm?.trim().toLowerCase();
-  if (trimmedSearch) {
-    const inTitle = preview.title.toLowerCase().includes(trimmedSearch);
-    const inIngredients = preview.ingredients
-      .join(" ")
-      .toLowerCase()
-      .includes(trimmedSearch);
-    const inTags = preview.tags.join(" ").toLowerCase().includes(trimmedSearch);
-    if (!inTitle && !inIngredients && !inTags) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-export function subscribeToRecipesCollection(
-  onUpdate: (event: RecipesCollectionEvent) => void,
-  onError?: (error: Error) => void
-): Unsubscribe {
-  let isInitial = true;
-  return onSnapshot(
-    collection(db, "recipes"),
-    (snapshot) => {
-      if (isInitial) {
-        isInitial = false;
-        onUpdate({
-          type: "initial",
-          ids: snapshot.docs.map((d) => d.id),
-        });
-        return;
-      }
-
-      const added: LiveRecipePreview[] = [];
-      const modified: LiveRecipePreview[] = [];
-      const removedIds: string[] = [];
-
-      for (const change of snapshot.docChanges()) {
-        if (change.type === "removed") {
-          removedIds.push(change.doc.id);
-        } else if (change.type === "added") {
-          added.push(toLiveRecipePreview(change.doc.id, change.doc.data()));
-        } else if (change.type === "modified") {
-          modified.push(toLiveRecipePreview(change.doc.id, change.doc.data()));
-        }
-      }
-
-      if (added.length > 0 || modified.length > 0 || removedIds.length > 0) {
-        onUpdate({ type: "changes", added, modified, removedIds });
-      }
-    },
-    (error) => {
-      onError?.(error);
-    }
-  );
 }
 
 /**

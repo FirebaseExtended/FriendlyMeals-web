@@ -22,8 +22,9 @@ import { isDebugSsrEnabled } from "@/lib/ssr";
 
 export const handle = { hideHeader: true };
 
+// Omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`
 const PUBLIC_RECIPE_CACHE_CONTROL =
-  "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
+  "public, max-age=60, stale-while-revalidate=300";
 
 export function headers({ loaderHeaders, errorHeaders }: Route.HeadersArgs) {
   if (errorHeaders) {

@@ -20,7 +20,6 @@ import {
   type Recipe,
 } from "@/firebase/data";
 import { FilterPanel } from "@/components/FilterPanel";
-import { NewRecipesBanner } from "@/components/NewRecipesBanner";
 import { RecipeCard } from "@/components/RecipeCard";
 import { SearchBar } from "@/components/SearchBar";
 import { SortControl } from "@/components/SortControl";
@@ -44,13 +43,13 @@ import {
   isLikedFilterEnabled,
   parseFiltersFromUrl,
   parseLimitParam,
-  usePendingNewRecipes,
 } from "@/lib/recipes-catalog";
 import { isDebugSsrEnabled } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
 
+// Omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`
 const PUBLIC_RECIPES_CACHE_CONTROL =
-  "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
+  "public, max-age=60, stale-while-revalidate=300";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -182,17 +181,9 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 const ZeroState: FC<{
   ssr: boolean;
   returnState?: RecipesReturnState;
-  newRecipesCount: number;
-  isRefreshingNew: boolean;
-  onShowNew: () => void;
-}> = ({ ssr, returnState, newRecipesCount, isRefreshingNew, onShowNew }) => {
+}> = ({ ssr, returnState }) => {
   return (
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
-      <NewRecipesBanner
-        count={newRecipesCount}
-        isRefreshing={isRefreshingNew}
-        onShow={onShowNew}
-      />
       <Empty className={cn("border border-dashed bg-card", ssr && "ssr")}>
         <EmptyMedia variant="icon">
           <BookOpen aria-hidden="true" className="h-6 w-6" />
@@ -265,27 +256,8 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     navigation.state,
   ]);
 
-  const newRecipesCount = usePendingNewRecipes(loaderData, {
-    searchTerm: activeQueryText || undefined,
-    minRating: activeMinRating > 0 ? activeMinRating : undefined,
-    tags: activeTags.length > 0 ? activeTags : undefined,
-    likedOnly: activeLikedOnly,
-  });
-  const isRefreshingNew = revalidator.state === "loading";
-  const handleShowNew = () => {
-    void revalidator.revalidate();
-  };
-
   if ((!recipes || recipes.length === 0) && !hasFilters) {
-    return (
-      <ZeroState
-        ssr={ssr}
-        returnState={returnState}
-        newRecipesCount={newRecipesCount}
-        isRefreshingNew={isRefreshingNew}
-        onShowNew={handleShowNew}
-      />
-    );
+    return <ZeroState ssr={ssr} returnState={returnState} />;
   }
 
   const currentLimit = parseLimitParam(searchParams.get("limit"));
@@ -360,12 +332,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
 
           <SortControl ssr={ssr} />
         </div>
-
-        <NewRecipesBanner
-          count={newRecipesCount}
-          isRefreshing={isRefreshingNew}
-          onShow={handleShowNew}
-        />
 
         {isResolvingLikedCatalog ? (
           <div
