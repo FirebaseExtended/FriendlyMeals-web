@@ -544,17 +544,10 @@ const FilterPanel: FC<{
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const { recipes, topTags, ssr } = loaderData;
   const [searchParams] = useSearchParams();
-  const navigation = useNavigation();
   const recipesPath = href("/recipes");
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const activeSearchParams =
-    navigation.state !== "idle" &&
-    navigation.location?.pathname === recipesPath
-      ? new URLSearchParams(navigation.location.search)
-      : searchParams;
-
-  const hasFilters = Array.from(activeSearchParams.entries()).some(
+  const hasFilters = Array.from(searchParams.entries()).some(
     ([key, value]) => Boolean(value) && !(key === "sort" && value === "none")
   );
 
@@ -562,18 +555,18 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     return <ZeroState ssr={ssr} />;
   }
 
-  const activeQueryText = activeSearchParams.get("q")?.trim() || "";
-  const activeMinRating = Number(activeSearchParams.get("minRating")) || 0;
+  const activeQueryText = searchParams.get("q")?.trim() || "";
+  const activeMinRating = Number(searchParams.get("minRating")) || 0;
   const activeTags =
-    activeSearchParams.get("tags")?.split(",").filter(Boolean) || [];
-  const activeSort = activeSearchParams.get("sort") || "none";
+    searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const activeSort = searchParams.get("sort") || "none";
   const activeSortLabel =
     activeSort !== "none"
       ? SORT_OPTIONS.find((opt) => opt.value === activeSort)?.label
       : undefined;
 
   const buildFilterHref = (mutate: (params: URLSearchParams) => void) => {
-    const next = new URLSearchParams(activeSearchParams);
+    const next = new URLSearchParams(searchParams);
     mutate(next);
     const qs = next.toString();
     return qs ? `${recipesPath}?${qs}` : recipesPath;
@@ -657,134 +650,153 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           )}
         </div>
 
-        {!recipes || recipes.length === 0 ? (
-          <div
-            className={cn(
-              "space-y-4 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
-              ssr && "ssr"
-            )}
-          >
-            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              {activeQueryText ? (
-                <Sparkles className="size-5" />
-              ) : (
-                <Search className="size-5" />
-              )}
-            </div>
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">
-                {activeQueryText
-                  ? `No recipes found for "${activeQueryText}"`
-                  : "No recipes match these filters"}
-              </p>
-              <p className="mx-auto max-w-md text-sm text-muted-foreground">
-                {activeQueryText
-                  ? "Want Gemini to turn that into a fresh recipe, or clear your filters to browse the full cookbook?"
-                  : "Try removing a filter to see more recipes from the cookbook."}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              {activeQueryText && (
-                <Button asChild size="sm" className="gap-1.5">
-                  <Link
-                    to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
-                  >
-                    <Sparkles className="size-3.5" />
-                    <span>Generate a "{activeQueryText}" recipe</span>
-                  </Link>
-                </Button>
-              )}
-              <Button
-                asChild
-                variant={activeQueryText ? "outline" : "secondary"}
-                size="sm"
-              >
-                <Link to={recipesPath} replace>
-                  Clear search & filters
-                </Link>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <ItemGroup className="gap-3">
-            {recipes.map((recipe: Recipe) => (
-              <Item
-                key={recipe.id}
-                asChild
-                variant="outline"
+        <ItemGroup
+          className="gap-3"
+          role={recipes && recipes.length > 0 ? "list" : undefined}
+        >
+          {!recipes || recipes.length === 0 ? (
+            <ViewTransition
+              key="empty-results"
+              default="none"
+              enter="vt-recipe-card-enter"
+              exit="vt-recipe-card-exit"
+            >
+              <div
                 className={cn(
-                  "rounded-xl bg-card p-5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                  "space-y-4 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
                   ssr && "ssr"
                 )}
               >
-                <Link to={href("/recipes/:recipeId", { recipeId: recipe.id })}>
-                  {isSafeImageUrl(recipe.imageUri) && (
-                    <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
-                      <img
-                        src={recipe.imageUri}
-                        alt={recipe.title}
-                        className="size-full object-cover"
-                      />
-                    </ItemMedia>
+                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  {activeQueryText ? (
+                    <Sparkles className="size-5" />
+                  ) : (
+                    <Search className="size-5" />
                   )}
-                  <ItemContent className="gap-1.5">
-                    <ViewTransition
-                      name={getRecipeTitleTransitionName(recipe.id)}
-                      default="none"
-                      share="vt-recipe-title"
-                    >
-                      <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-primary transition-colors">
-                        {recipe.title}
-                      </ItemTitle>
-                    </ViewTransition>
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-                      {recipe.averageRating > 0 ? (
-                        <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                          {recipe.averageRating.toFixed(1)}
-                        </span>
-                      ) : (
-                        <span>New</span>
-                      )}
-                      {recipe.likes > 0 && (
-                        <span>
-                          • {recipe.likes}{" "}
-                          {recipe.likes === 1 ? "like" : "likes"}
-                        </span>
-                      )}
-                      {(recipe.prepTime || recipe.cookTime) && (
-                        <span>
-                          •{" "}
-                          {[
-                            recipe.prepTime && `Prep ${recipe.prepTime}`,
-                            recipe.cookTime && `Cook ${recipe.cookTime}`,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                      )}
-                    </div>
-                    {recipe.tags?.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {recipe.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold text-foreground">
+                    {activeQueryText
+                      ? `No recipes found for "${activeQueryText}"`
+                      : "No recipes match these filters"}
+                  </p>
+                  <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                    {activeQueryText
+                      ? "Want Gemini to turn that into a fresh recipe, or clear your filters to browse the full cookbook?"
+                      : "Try removing a filter to see more recipes from the cookbook."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  {activeQueryText && (
+                    <Button asChild size="sm" className="gap-1.5">
+                      <Link
+                        to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
+                      >
+                        <Sparkles className="size-3.5" />
+                        <span>Generate a "{activeQueryText}" recipe</span>
+                      </Link>
+                    </Button>
+                  )}
+                  <Button
+                    asChild
+                    variant={activeQueryText ? "outline" : "secondary"}
+                    size="sm"
+                  >
+                    <Link to={recipesPath} replace>
+                      Clear search & filters
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </ViewTransition>
+          ) : (
+            recipes.map((recipe: Recipe) => (
+              <ViewTransition
+                key={recipe.id}
+                default="none"
+                enter="vt-recipe-card-enter"
+                exit="vt-recipe-card-exit"
+                update="vt-recipe-card-move"
+              >
+                <Item
+                  asChild
+                  variant="outline"
+                  className={cn(
+                    "rounded-xl bg-card p-5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                    ssr && "ssr"
+                  )}
+                >
+                  <Link
+                    to={href("/recipes/:recipeId", { recipeId: recipe.id })}
+                  >
+                    {isSafeImageUrl(recipe.imageUri) && (
+                      <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
+                        <img
+                          src={recipe.imageUri}
+                          alt={recipe.title}
+                          className="size-full object-cover"
+                        />
+                      </ItemMedia>
                     )}
-                  </ItemContent>
-                  <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
-                    <ChevronRight className="w-5 h-5" />
-                  </ItemActions>
-                </Link>
-              </Item>
-            ))}
-          </ItemGroup>
-        )}
+                    <ItemContent className="gap-1.5">
+                      <ViewTransition
+                        name={getRecipeTitleTransitionName(recipe.id)}
+                        default="none"
+                        share="vt-recipe-title"
+                      >
+                        <ItemTitle className="text-base font-semibold text-foreground group-hover/item:text-primary transition-colors">
+                          {recipe.title}
+                        </ItemTitle>
+                      </ViewTransition>
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                        {recipe.averageRating > 0 ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                            {recipe.averageRating.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span>New</span>
+                        )}
+                        {recipe.likes > 0 && (
+                          <span>
+                            • {recipe.likes}{" "}
+                            {recipe.likes === 1 ? "like" : "likes"}
+                          </span>
+                        )}
+                        {(recipe.prepTime || recipe.cookTime) && (
+                          <span>
+                            •{" "}
+                            {[
+                              recipe.prepTime && `Prep ${recipe.prepTime}`,
+                              recipe.cookTime && `Cook ${recipe.cookTime}`,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        )}
+                      </div>
+                      {recipe.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {recipe.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </ItemContent>
+                    <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
+                      <ChevronRight className="w-5 h-5" />
+                    </ItemActions>
+                  </Link>
+                </Item>
+              </ViewTransition>
+            ))
+          )}
+        </ItemGroup>
       </section>
     </div>
   );
