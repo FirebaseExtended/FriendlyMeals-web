@@ -78,7 +78,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <main
       className={cn(
-        "container mx-auto my-12 max-w-2xl rounded-xl p-6 space-y-4",
+        "container mx-auto my-12 max-w-2xl rounded-md p-6 space-y-4",
         isSsr && "ssr"
       )}
     >
@@ -90,7 +90,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         </Button>
       </div>
       {stack && (
-        <pre className="mt-4 w-full overflow-x-auto rounded-lg bg-muted p-4 text-xs">
+        <pre className="mt-4 w-full overflow-x-auto rounded-md bg-muted p-4 text-xs">
           <code>{stack}</code>
         </pre>
       )}

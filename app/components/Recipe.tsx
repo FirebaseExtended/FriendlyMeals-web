@@ -159,7 +159,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
       <article
         className={cn(
-          "bg-card w-full relative shadow-xs border rounded-xl overflow-hidden",
+          "bg-card w-full relative shadow-xs border rounded-md overflow-hidden",
           ssr && "ssr"
         )}
       >
@@ -199,7 +199,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   aria-label={`Like recipe (${optimisticLikesCount} ${optimisticLikesCount === 1 ? "like" : "likes"})`}
                   onClick={handleLikeToggle}
                   className={cn(
-                    "shrink-0 rounded-full gap-1.5 px-3.5 transition-colors",
+                    "shrink-0 rounded-md gap-1.5 px-3 transition-colors",
                     optimisticLiked &&
                       "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400"
                   )}
@@ -230,7 +230,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                         onFocus={() => setHoveredStar(star)}
                         onBlur={() => setHoveredStar(0)}
                         onClick={() => handleRating(star)}
-                        className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="p-1.5 -m-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Star
                           aria-hidden="true"
@@ -316,7 +316,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   <label className="flex items-start gap-3 cursor-pointer select-none">
                     <input
                       type="checkbox"
-                      className="peer mt-1 size-4 rounded border-border accent-primary shrink-0"
+                      className="peer mt-1 size-4 rounded-md border-border accent-primary shrink-0"
                     />
                     <span className="text-sm sm:text-base text-foreground/90 leading-relaxed peer-checked:line-through peer-checked:text-muted-foreground transition-colors">
                       {ingredient}
@@ -341,7 +341,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   <li key={index} className="flex items-start gap-3.5">
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary tabular-nums"
+                      className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary tabular-nums"
                     >
                       {index + 1}
                     </span>

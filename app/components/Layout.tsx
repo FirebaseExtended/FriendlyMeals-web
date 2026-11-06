@@ -168,7 +168,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <AppShell forceHeader>
       <div
         className={cn(
-          "max-w-xl mx-auto my-12 py-12 px-6 rounded-xl text-center space-y-4",
+          "max-w-xl mx-auto my-12 py-12 px-6 rounded-md text-center space-y-4",
           isSsr && "ssr"
         )}
       >

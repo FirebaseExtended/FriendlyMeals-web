@@ -21,7 +21,11 @@ export function meta() {
 }
 
 function getSafeRedirectPath(rawRedirect: string | null): string {
-  if (!rawRedirect || !rawRedirect.startsWith("/") || rawRedirect.startsWith("//")) {
+  if (
+    !rawRedirect ||
+    !rawRedirect.startsWith("/") ||
+    rawRedirect.startsWith("//")
+  ) {
     return href("/generate");
   }
   return rawRedirect;
@@ -47,7 +51,7 @@ export function HydrateFallback() {
     <div className="flex min-h-[60vh] items-center justify-center p-4">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-xl px-6 py-4 text-muted-foreground",
+          "flex items-center gap-2 rounded-md px-6 py-4 text-muted-foreground",
           isSsr && "ssr"
         )}
       >

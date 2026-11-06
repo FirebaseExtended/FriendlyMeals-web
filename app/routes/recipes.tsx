@@ -320,7 +320,7 @@ const NewRecipesBanner: FC<{
           disabled={isRefreshing}
           onClick={onShow}
           aria-live="polite"
-          className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 font-serif text-xs font-medium text-primary shadow-xs transition-all hover:border-primary/50 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70"
+          className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-1.5 font-serif text-xs font-medium text-primary shadow-xs transition-all hover:border-primary/50 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70"
         >
           {isRefreshing ? (
             <Spinner className="size-3.5" />
@@ -596,7 +596,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
           submitSearch(next);
         }}
         className={cn(
-          "h-11 rounded-xl bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden",
+          "h-11 rounded-md bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden",
           ssr && "ssr"
         )}
       />
@@ -724,7 +724,7 @@ const FilterPanel: FC<{
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card shadow-xs md:rounded-none md:border-0 md:bg-transparent md:shadow-none",
+        "rounded-md border bg-card shadow-xs md:rounded-none md:border-0 md:bg-transparent md:shadow-none",
         ssr && "ssr"
       )}
     >
@@ -743,7 +743,7 @@ const FilterPanel: FC<{
           />
           <span className="font-medium">Filter</span>
           {hasPanelFilters && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               Active
             </span>
           )}
@@ -863,7 +863,7 @@ const FilterPanel: FC<{
                       minRating: star === minRating ? 0 : star,
                     })
                   }
-                  className="p-1.5 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="p-1.5 -m-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Star
                     aria-hidden="true"
@@ -910,7 +910,7 @@ const FilterPanel: FC<{
                         })
                       }
                       className={cn(
-                        "rounded-full border px-3 py-1 text-xs transition-colors",
+                        "rounded-md border px-3 py-1 text-xs transition-colors",
                         selected
                           ? "border-primary bg-primary/10 font-medium text-primary"
                           : "border-border bg-card text-foreground/80 hover:border-primary/50 hover:text-foreground"
@@ -986,7 +986,7 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
         value={activeSort}
         onChange={(e) => handleSortChange(e.target.value)}
         className={cn(
-          "h-8 w-auto rounded-lg bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs",
+          "h-8 w-auto rounded-md bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs",
           ssr && "ssr"
         )}
       >
@@ -1181,7 +1181,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
         {isResolvingLikedCatalog ? (
           <div
             className={cn(
-              "flex flex-col items-center justify-center gap-3 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
+              "flex flex-col items-center justify-center gap-3 rounded-md border bg-card px-6 py-12 text-center shadow-xs",
               ssr && "ssr"
             )}
           >
@@ -1199,11 +1199,11 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           >
             <div
               className={cn(
-                "space-y-4 rounded-xl border bg-card px-6 py-12 text-center shadow-xs",
+                "space-y-4 rounded-md border bg-card px-6 py-12 text-center shadow-xs",
                 ssr && "ssr"
               )}
             >
-              <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <div className="mx-auto flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
                 {activeQueryText ? (
                   <Sparkles aria-hidden="true" className="size-5" />
                 ) : isEmptyLikedOnly ? (
@@ -1263,7 +1263,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                         asChild
                         variant="outline"
                         className={cn(
-                          "rounded-xl bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                          "rounded-md bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
                           ssr && "ssr"
                         )}
                       >
@@ -1274,7 +1274,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                           state={returnState}
                         >
                           {isSafeImageUrl(recipe.imageUri) && (
-                            <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
+                            <ItemMedia className="size-16 rounded-md overflow-hidden border bg-muted shrink-0">
                               <img
                                 src={recipe.imageUri}
                                 alt={recipe.title}
@@ -1356,7 +1356,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       variant="outline"
                       disabled
                       className={cn(
-                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 shadow-xs disabled:opacity-100",
+                        "h-10 w-full sm:w-auto rounded-md bg-card px-6 shadow-xs disabled:opacity-100",
                         ssr && "ssr"
                       )}
                     >
@@ -1368,7 +1368,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       asChild
                       variant="outline"
                       className={cn(
-                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 shadow-xs hover:border-primary/40 hover:bg-accent/50",
+                        "h-10 w-full sm:w-auto rounded-md bg-card px-6 shadow-xs hover:border-primary/40 hover:bg-accent/50",
                         ssr && "ssr"
                       )}
                     >

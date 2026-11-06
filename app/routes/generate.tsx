@@ -61,12 +61,12 @@ function RecipeSkeleton() {
       role="status"
       aria-live="polite"
       aria-label="Generating recipe"
-      className="w-full overflow-hidden rounded-xl border bg-card shadow-xs"
+      className="w-full overflow-hidden rounded-md border bg-card shadow-xs"
     >
       <div className="h-1.5 w-full bg-gradient-to-r from-primary via-teal-500 to-amber-400 opacity-60" />
       <div className="space-y-6 p-6 sm:p-8 animate-pulse">
         <div className="space-y-3">
-          <div className="h-8 w-2/3 rounded-lg bg-muted" />
+          <div className="h-8 w-2/3 rounded-md bg-muted" />
           <div className="flex gap-2">
             <div className="h-5 w-16 rounded-md bg-muted" />
             <div className="h-5 w-20 rounded-md bg-muted" />
@@ -74,25 +74,25 @@ function RecipeSkeleton() {
           </div>
         </div>
         <div className="flex gap-6 border-y border-border/60 py-3.5">
-          <div className="h-4 w-20 rounded bg-muted" />
-          <div className="h-4 w-20 rounded bg-muted" />
-          <div className="h-4 w-16 rounded bg-muted" />
+          <div className="h-4 w-20 rounded-md bg-muted" />
+          <div className="h-4 w-20 rounded-md bg-muted" />
+          <div className="h-4 w-16 rounded-md bg-muted" />
         </div>
         <div className="space-y-3">
-          <div className="h-5 w-28 rounded bg-muted" />
+          <div className="h-5 w-28 rounded-md bg-muted" />
           <div className="space-y-2.5">
-            <div className="h-4 w-5/6 rounded bg-muted" />
-            <div className="h-4 w-3/4 rounded bg-muted" />
-            <div className="h-4 w-4/5 rounded bg-muted" />
-            <div className="h-4 w-2/3 rounded bg-muted" />
+            <div className="h-4 w-5/6 rounded-md bg-muted" />
+            <div className="h-4 w-3/4 rounded-md bg-muted" />
+            <div className="h-4 w-4/5 rounded-md bg-muted" />
+            <div className="h-4 w-2/3 rounded-md bg-muted" />
           </div>
         </div>
         <div className="space-y-4">
-          <div className="h-5 w-28 rounded bg-muted" />
+          <div className="h-5 w-28 rounded-md bg-muted" />
           <div className="space-y-3">
-            <div className="h-14 w-full rounded-lg bg-muted" />
-            <div className="h-14 w-full rounded-lg bg-muted" />
-            <div className="h-14 w-11/12 rounded-lg bg-muted" />
+            <div className="h-14 w-full rounded-md bg-muted" />
+            <div className="h-14 w-full rounded-md bg-muted" />
+            <div className="h-14 w-11/12 rounded-md bg-muted" />
           </div>
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
         {errorMessage && (
           <div
             role="alert"
-            className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
             {errorMessage}
           </div>
@@ -289,7 +289,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
           aria-label="Generated recipe preview"
           className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300"
         >
-          <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+          <header className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/25 bg-primary/5 px-4 py-3">
             <div className="flex items-center gap-2 min-w-0 text-sm">
               <Sparkles
                 aria-hidden="true"
@@ -366,7 +366,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
           {!showComposer && errorMessage && (
             <div
               role="alert"
-              className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
             >
               {errorMessage}
             </div>

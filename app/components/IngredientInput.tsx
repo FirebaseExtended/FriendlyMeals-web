@@ -54,7 +54,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
       type="submit"
       size="sm"
       disabled={busy || submitDisabled}
-      className={cn("rounded-xl px-4 gap-1.5", busy && "disabled:opacity-100")}
+      className={cn("rounded-md px-4 gap-1.5", busy && "disabled:opacity-100")}
     >
       {busy && <Spinner className="size-4" />}
       <span>
@@ -76,7 +76,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
         submitForm();
       }}
       className={cn(
-        "rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20",
+        "rounded-md border bg-card shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20",
         fieldError &&
           "border-destructive/60 focus-within:border-destructive focus-within:ring-destructive/20",
         ssr && "ssr"
@@ -132,7 +132,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
                   aria-pressed={selected}
                   onClick={() => setCuisineType(option.value)}
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
                     selected
                       ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/25"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
