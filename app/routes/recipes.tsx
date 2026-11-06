@@ -442,23 +442,12 @@ const FilterPanel: FC<{
       </button>
 
       {/* Desktop static sidebar header */}
-      <div className="hidden md:flex items-center justify-between pb-3">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal
-            aria-hidden="true"
-            className="w-4 h-4 text-muted-foreground"
-          />
-          <h2 className="text-lg font-normal text-foreground">Filter</h2>
-        </div>
-        {hasPanelFilters && (
-          <Link
-            to={resetHref}
-            replace
-            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Clear
-          </Link>
-        )}
+      <div className="hidden md:flex items-center gap-2 pb-3">
+        <SlidersHorizontal
+          aria-hidden="true"
+          className="w-4 h-4 text-muted-foreground"
+        />
+        <h2 className="text-lg font-normal text-foreground">Filter</h2>
       </div>
 
       <Form
@@ -570,13 +559,13 @@ const FilterPanel: FC<{
           )}
 
           {hasPanelFilters && (
-            <div className="border-t border-border/60 pt-3 md:hidden">
+            <div className="flex justify-start border-t border-border/60 pt-3 md:border-t-0 md:pt-0">
               <Link
                 to={resetHref}
                 replace
-                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline transition-colors"
               >
-                Clear filters
+                Clear
               </Link>
             </div>
           )}
