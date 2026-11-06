@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
@@ -313,7 +314,6 @@ const FilterPanel: FC<{
   const submitFilterUpdates = (updates: {
     minRating?: number;
     tags?: string[];
-    sort?: RecipeSort;
   }) => {
     const nextParams = new URLSearchParams(activeSearchParams);
 
@@ -333,14 +333,6 @@ const FilterPanel: FC<{
       }
     }
 
-    if (updates.sort !== undefined) {
-      if (updates.sort !== DEFAULT_SORT) {
-        nextParams.set("sort", updates.sort);
-      } else {
-        nextParams.delete("sort");
-      }
-    }
-
     submit(nextParams, {
       method: "get",
       action: recipesPath,
@@ -348,12 +340,17 @@ const FilterPanel: FC<{
     });
   };
 
-  const hasPanelFilters =
-    minRating > 0 || selectedTags.length > 0 || sortBy !== DEFAULT_SORT;
+  const hasPanelFilters = minRating > 0 || selectedTags.length > 0;
 
-  const resetHref = queryText
-    ? `${recipesPath}?q=${encodeURIComponent(queryText)}`
-    : recipesPath;
+  const resetParams = new URLSearchParams();
+  if (queryText) {
+    resetParams.set("q", queryText);
+  }
+  if (sortBy !== DEFAULT_SORT) {
+    resetParams.set("sort", sortBy);
+  }
+  const resetQs = resetParams.toString();
+  const resetHref = resetQs ? `${recipesPath}?${resetQs}` : recipesPath;
 
   const activeRatingPreview = hoveredStar || minRating;
 
@@ -373,7 +370,7 @@ const FilterPanel: FC<{
       >
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-          <span className="font-medium">Filters & Sort</span>
+          <span className="font-medium">Filter</span>
           {hasPanelFilters && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               Active
@@ -391,9 +388,7 @@ const FilterPanel: FC<{
       <div className="hidden md:flex items-center justify-between pb-3">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">
-            Filters & Sort
-          </span>
+          <span className="text-sm font-semibold text-foreground">Filter</span>
         </div>
         {hasPanelFilters && (
           <Link
@@ -415,6 +410,9 @@ const FilterPanel: FC<{
         )}
       >
         {queryText && <input type="hidden" name="q" value={queryText} />}
+        {sortBy !== DEFAULT_SORT && (
+          <input type="hidden" name="sort" value={sortBy} />
+        )}
         {minRating > 0 && (
           <input type="hidden" name="minRating" value={String(minRating)} />
         )}
@@ -505,28 +503,6 @@ const FilterPanel: FC<{
             </Field>
           )}
 
-          <Field>
-            <FieldLabel>Sort By</FieldLabel>
-            <div className="flex flex-col gap-2">
-              {SORT_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="sort"
-                    value={option.value}
-                    checked={sortBy === option.value}
-                    onChange={() => submitFilterUpdates({ sort: option.value })}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </Field>
-
           {hasPanelFilters && (
             <div className="border-t border-border/60 pt-3 md:hidden">
               <Link
@@ -547,34 +523,42 @@ const FilterPanel: FC<{
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const { recipes, topTags, ssr } = loaderData;
   const [searchParams] = useSearchParams();
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const recipesPath = href("/recipes");
   const [filterOpen, setFilterOpen] = useState(false);
+
+  const activeSearchParams =
+    navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath
+      ? new URLSearchParams(navigation.location.search)
+      : searchParams;
 
   const activeQueryText = searchParams.get("q")?.trim() || "";
   const activeMinRating = Number(searchParams.get("minRating")) || 0;
   const activeTags =
     searchParams.get("tags")?.split(",").filter(Boolean) || [];
-  const activeSort = parseSortParam(searchParams.get("sort"));
+  const activeSort = parseSortParam(activeSearchParams.get("sort"));
   const hasFilters =
-    Boolean(activeQueryText) ||
-    activeMinRating > 0 ||
-    activeTags.length > 0 ||
-    activeSort !== DEFAULT_SORT;
+    Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
 
   if ((!recipes || recipes.length === 0) && !hasFilters) {
     return <ZeroState ssr={ssr} />;
   }
 
-  const activeSortLabel =
-    activeSort !== DEFAULT_SORT
-      ? SORT_OPTIONS.find((opt) => opt.value === activeSort)?.label
-      : undefined;
-
-  const buildFilterHref = (mutate: (params: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParams);
-    mutate(next);
-    const qs = next.toString();
-    return qs ? `${recipesPath}?${qs}` : recipesPath;
+  const handleSortChange = (nextSortValue: string) => {
+    const nextSort = parseSortParam(nextSortValue);
+    const nextParams = new URLSearchParams(activeSearchParams);
+    if (nextSort !== DEFAULT_SORT) {
+      nextParams.set("sort", nextSort);
+    } else {
+      nextParams.delete("sort");
+    }
+    submit(nextParams, {
+      method: "get",
+      action: recipesPath,
+      replace: true,
+    });
   };
 
   return (
@@ -593,7 +577,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       </aside>
 
       <section className="min-w-0 md:col-start-2 md:row-start-2">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <h1 className="text-base font-semibold text-foreground">
             Recipes{" "}
             <span className="text-sm font-normal text-muted-foreground tabular-nums">
@@ -601,58 +585,30 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             </span>
           </h1>
 
-          {hasFilters && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {activeMinRating > 0 && (
-                <Link
-                  to={buildFilterHref((p) => p.delete("minRating"))}
-                  replace
-                  aria-label={`Remove ${activeMinRating} star minimum filter`}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
-                >
-                  <span>{activeMinRating}★+</span>
-                  <X className="size-3" />
-                </Link>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="recipe-sort"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Sort
+            </label>
+            <Select
+              id="recipe-sort"
+              name="sort"
+              value={activeSort}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className={cn(
+                "h-8 w-auto rounded-lg bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs",
+                ssr && "ssr"
               )}
-              {activeTags.map((tag) => (
-                <Link
-                  key={tag}
-                  to={buildFilterHref((p) => {
-                    const remaining = activeTags.filter((t) => t !== tag);
-                    if (remaining.length > 0) {
-                      p.set("tags", remaining.join(","));
-                    } else {
-                      p.delete("tags");
-                    }
-                  })}
-                  replace
-                  aria-label={`Remove ${tag} tag filter`}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
-                >
-                  <span>{tag}</span>
-                  <X className="size-3" />
-                </Link>
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
-              {activeSortLabel && (
-                <Link
-                  to={buildFilterHref((p) => p.delete("sort"))}
-                  replace
-                  aria-label={`Remove ${activeSortLabel} sort`}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <span>Sort: {activeSortLabel}</span>
-                  <X className="size-3" />
-                </Link>
-              )}
-              <Link
-                to={recipesPath}
-                replace
-                className="px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Clear all
-              </Link>
-            </div>
-          )}
+            </Select>
+          </div>
         </div>
 
         <ItemGroup
@@ -687,12 +643,12 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                   </p>
                   <p className="mx-auto max-w-md text-sm text-muted-foreground">
                     {activeQueryText
-                      ? "Want Gemini to turn that into a fresh recipe, or clear your filters to browse the full cookbook?"
-                      : "Try removing a filter to see more recipes from the cookbook."}
+                      ? "Want Gemini to turn that into a fresh recipe?"
+                      : "Try adjusting or clearing your filters in the Filter panel."}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                  {activeQueryText && (
+                {activeQueryText && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                     <Button asChild size="sm" className="gap-1.5">
                       <Link
                         to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
@@ -701,17 +657,8 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                         <span>Generate a "{activeQueryText}" recipe</span>
                       </Link>
                     </Button>
-                  )}
-                  <Button
-                    asChild
-                    variant={activeQueryText ? "outline" : "secondary"}
-                    size="sm"
-                  >
-                    <Link to={recipesPath} replace>
-                      Clear search & filters
-                    </Link>
-                  </Button>
-                </div>
+                  </div>
+                )}
               </div>
             </ViewTransition>
           ) : (
