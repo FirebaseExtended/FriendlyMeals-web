@@ -1,3 +1,4 @@
+import { captureOwnerStack } from "react";
 import {
   breadcrumbs,
   flush,
@@ -30,10 +31,14 @@ export function reportClientError(
   error: unknown,
   attributes?: Record<string, string>
 ): void {
+  const ownerStack = import.meta.env.DEV ? captureOwnerStack() : null;
+  const enrichedAttributes = ownerStack
+    ? { ...attributes, ownerStack }
+    : attributes;
   console.error("[Client Error]", error);
   const crashlytics = initBrowserCrashlytics();
   if (crashlytics) {
-    recordError(crashlytics, error, attributes);
+    recordError(crashlytics, error, enrichedAttributes);
   }
 }
 

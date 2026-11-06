@@ -1,4 +1,4 @@
-import { doc, getDoc, Timestamp, writeBatch } from "firebase/firestore";
+import { doc, Timestamp, writeBatch } from "firebase/firestore";
 import { db, type NewRecipeInput } from "./data";
 
 interface SeedReviewSpec {
@@ -1169,35 +1169,12 @@ export const SEED_RECIPES: SeedRecipeEntry[] = [
   },
 ];
 
-async function resolveSeedRecipeId(
-  slug: string,
-  userId: string
-): Promise<string> {
-  const defaultId = `seed-${slug}`;
-  const existing = await getDoc(doc(db, "recipes", defaultId)).catch(
-    () => null
-  );
-  if (!existing || !existing.exists() || existing.data()?.authorId === userId) {
-    return defaultId;
-  }
-  const safeUidPrefix =
-    userId
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "")
-      .slice(0, 8) || "user";
-  return `seed-${safeUidPrefix}-${slug}`;
-}
-
 /**
  * Seeds 20 sample recipes (with varied reviews and likes) from the browser
  * using the signed-in user's Firebase Auth context. Works identically against
  * production Firestore and the local Firebase Emulator Suite.
  */
 export async function seedSampleRecipes(userId: string): Promise<number> {
-  const resolvedIds = await Promise.all(
-    SEED_RECIPES.map((entry) => resolveSeedRecipeId(entry.slug, userId))
-  );
-
   // 1. Write all 20 recipe documents first so `exists` / `get` rules succeed on engagement writes.
   // Stagger `createdAt` across 3..22 days ago in a non-alphabetical order so "Newest" and
   // "Alphabetical" sorts look genuinely distinct while keeping freshly published recipes on top.
@@ -1205,7 +1182,7 @@ export async function seedSampleRecipes(userId: string): Promise<number> {
   const dayMs = 86_400_000;
   const recipeBatch = writeBatch(db);
   SEED_RECIPES.forEach((entry, idx) => {
-    const recipeId = resolvedIds[idx];
+    const recipeId = `seed-${entry.slug}`;
     const daysAgo = ((idx * 7 + 3) % SEED_RECIPES.length) + 3;
     recipeBatch.set(doc(db, "recipes", recipeId), {
       ...entry.recipe,
@@ -1219,8 +1196,8 @@ export async function seedSampleRecipes(userId: string): Promise<number> {
   const engagementOps: Array<(batch: ReturnType<typeof writeBatch>) => void> =
     [];
 
-  SEED_RECIPES.forEach((entry, idx) => {
-    const recipeId = resolvedIds[idx];
+  SEED_RECIPES.forEach((entry) => {
+    const recipeId = `seed-${entry.slug}`;
 
     entry.reviews.forEach((review, rIdx) => {
       const reviewId = `seed-review-${String(rIdx + 1).padStart(2, "0")}`;

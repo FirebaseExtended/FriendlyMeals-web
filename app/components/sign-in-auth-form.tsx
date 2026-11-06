@@ -14,7 +14,6 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Policies } from "@/components/policies";
 
 export type { SignInAuthFormProps };
 
@@ -109,7 +108,6 @@ export function SignInAuthForm(props: SignInAuthFormProps) {
             </Field>
           )}
         />
-        <Policies />
         <Button type="submit" disabled={ui.state !== "idle"}>
           {getTranslation(ui, "labels", "signIn")}
         </Button>

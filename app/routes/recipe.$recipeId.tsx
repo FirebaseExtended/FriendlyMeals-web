@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent } from "react";
 import {
   data,
   href,
   redirect,
+  useNavigation,
+  useRevalidator,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
 import type { Route } from "./+types/recipe.$recipeId";
@@ -17,8 +19,6 @@ import {
 } from "@/firebase/data";
 import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
-import { getRecipesHrefWithSearch } from "@/lib/navigation";
-import { isDebugSsrEnabled } from "@/lib/ssr";
 
 export const handle = { hideHeader: true };
 
@@ -43,7 +43,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 // Initial HTML request runs on the server and can be cached by Cloud CDN
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ params }: Route.LoaderArgs) {
   if (!params.recipeId) {
     throw data("No recipe ID provided", { status: 400 });
   }
@@ -51,18 +51,14 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (!recipe) {
     throw data("Recipe not found", { status: 404 });
   }
-  const cacheControl = isDebugSsrEnabled(new URL(request.url).searchParams)
-    ? "private, no-store"
-    : PUBLIC_RECIPE_CACHE_CONTROL;
   return data(
     {
       recipe,
       isLiked: false,
       checkedLikesForUid: null as string | null,
-      ssr: true,
     },
     {
-      headers: { "Cache-Control": cacheControl },
+      headers: { "Cache-Control": PUBLIC_RECIPE_CACHE_CONTROL },
     }
   );
 }
@@ -86,7 +82,6 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
     recipe,
     isLiked,
     checkedLikesForUid: user?.uid ?? null,
-    ssr: false,
   };
 }
 
@@ -94,6 +89,8 @@ export function shouldRevalidate({
   actionResult,
   currentParams,
   nextParams,
+  currentUrl,
+  nextUrl,
   formMethod,
   defaultShouldRevalidate,
 }: ShouldRevalidateFunctionArgs) {
@@ -106,6 +103,9 @@ export function shouldRevalidate({
     ) {
       return false;
     }
+    return defaultShouldRevalidate;
+  }
+  if (currentUrl.href === nextUrl.href) {
     return defaultShouldRevalidate;
   }
   return currentParams.recipeId !== nextParams.recipeId;
@@ -158,7 +158,7 @@ export async function clientAction({
 
     if (intent === "delete") {
       await deleteRecipe(recipeId);
-      return redirect(getRecipesHrefWithSearch(formData.get("recipesSearch")));
+      return redirect(href("/recipes"));
     }
 
     return data({ ok: false, error: "Unsupported action." }, { status: 400 });
@@ -178,65 +178,38 @@ export async function clientAction({
 }
 
 export default function RecipePage({ loaderData }: Route.ComponentProps) {
-  const { recipe, isLiked, checkedLikesForUid, ssr } = loaderData;
+  const { recipe, isLiked, checkedLikesForUid } = loaderData;
   const { user, authReady } = useAuthUser();
-  const [clientLikedLookup, setClientLikedLookup] = useState<{
-    recipeId: string;
-    uid: string;
-    liked: boolean;
-  } | null>(null);
-
-  // If a signed-in user hard-refreshes an SSR-rendered recipe page, hydrate their liked state once
-  // without re-running clientLoader (preserving the SSR recipe payload).
-  useEffect(() => {
-    if (!authReady) {
-      return;
-    }
-    const uid = user?.uid ?? null;
-    if (!uid || uid === checkedLikesForUid) {
-      return;
-    }
-    let cancelled = false;
-    isRecipeLikedByUser(uid, recipe.id)
-      .then((liked) => {
-        if (!cancelled) {
-          setClientLikedLookup({ recipeId: recipe.id, uid, liked });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setClientLikedLookup({ recipeId: recipe.id, uid, liked: false });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [authReady, user?.uid, checkedLikesForUid, recipe.id]);
+  const revalidator = useRevalidator();
+  const navigation = useNavigation();
 
   const uid = user?.uid ?? null;
-  const hasLoaderLikesForUser = Boolean(uid && checkedLikesForUid === uid);
-  const hasHydratedLikesForUser = Boolean(
-    uid &&
-    clientLikedLookup?.recipeId === recipe.id &&
-    clientLikedLookup.uid === uid
-  );
+  const needsAuthRevalidation = Boolean(uid && checkedLikesForUid !== uid);
 
-  let resolvedIsLiked = false;
-  if (hasLoaderLikesForUser) {
-    resolvedIsLiked = isLiked;
-  } else if (hasHydratedLikesForUser && clientLikedLookup) {
-    resolvedIsLiked = clientLikedLookup.liked;
-  }
+  const triggerRevalidation = useEffectEvent(() => {
+    void revalidator.revalidate();
+  });
 
-  const isLikeStateReady =
-    authReady && (!uid || hasLoaderLikesForUser || hasHydratedLikesForUser);
+  // Hydrate liked state once via clientLoader when a signed-in user hard-refreshes an SSR recipe page
+  useEffect(() => {
+    if (
+      authReady &&
+      needsAuthRevalidation &&
+      revalidator.state === "idle" &&
+      navigation.state === "idle"
+    ) {
+      triggerRevalidation();
+    }
+  }, [authReady, needsAuthRevalidation, revalidator.state, navigation.state]);
+
+  const resolvedIsLiked = Boolean(uid && checkedLikesForUid === uid && isLiked);
+  const isLikeStateReady = authReady && !needsAuthRevalidation;
 
   return (
     <RecipeDetail
       recipe={recipe}
       isLiked={resolvedIsLiked}
       likeStateReady={isLikeStateReady}
-      ssr={ssr}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 import {
   href,
   Outlet,
@@ -49,15 +49,18 @@ export default function ProtectedLayout() {
     navigation.location != null &&
     navigation.location.pathname !== location.pathname;
 
+  const redirectToLogin = useEffectEvent((redirectTo: string) => {
+    void navigate(
+      `${href("/login")}?redirectTo=${encodeURIComponent(redirectTo)}`,
+      { replace: true }
+    );
+  });
+
   useEffect(() => {
     if (authReady && !user && !isLeaving) {
-      const redirectTo = `${location.pathname}${location.search}`;
-      void navigate(
-        `${href("/login")}?redirectTo=${encodeURIComponent(redirectTo)}`,
-        { replace: true }
-      );
+      redirectToLogin(`${location.pathname}${location.search}`);
     }
-  }, [authReady, user, isLeaving, location.pathname, location.search, navigate]);
+  }, [authReady, user, isLeaving, location.pathname, location.search]);
 
   return <Outlet />;
 }

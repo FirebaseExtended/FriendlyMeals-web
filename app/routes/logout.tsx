@@ -2,8 +2,6 @@ import { data, href, redirect } from "react-router";
 import type { Route } from "./+types/logout";
 import { Spinner } from "@/components/ui/spinner";
 import { signOutUser, waitForAuthReady } from "@/firebase/auth";
-import { useWasServerRendered } from "@/lib/ssr";
-import { cn } from "@/lib/utils";
 
 export function meta() {
   return [{ title: "Signing Out - Friendly Meals" }];
@@ -30,16 +28,9 @@ export async function clientLoader() {
 clientLoader.hydrate = true as const;
 
 export function HydrateFallback() {
-  const isSsr = useWasServerRendered();
-
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4">
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-md px-6 py-4 text-muted-foreground",
-          isSsr && "ssr"
-        )}
-      >
+      <div className="flex items-center gap-2 rounded-md px-6 py-4 text-muted-foreground">
         <Spinner className="h-5 w-5" />
         <span>Signing out...</span>
       </div>

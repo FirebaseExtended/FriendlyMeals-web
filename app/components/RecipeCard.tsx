@@ -9,70 +9,15 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import type { RecipesReturnState } from "@/lib/navigation";
-import { cn, getRecipeTitleTransitionName, isSafeImageUrl } from "@/lib/utils";
-
-function parseDurationMinutes(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const text = raw.trim();
-  if (!text) return null;
-
-  let total = 0;
-  let matched = false;
-
-  const hoursMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/i);
-  if (hoursMatch) {
-    total += parseFloat(hoursMatch[1]) * 60;
-    matched = true;
-  }
-
-  const minsMatch = text.match(
-    /(?:\d+(?:\.\d+)?\s*[-\u2013]\s*)?(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/i
-  );
-  if (minsMatch) {
-    total += parseFloat(minsMatch[1]);
-    matched = true;
-  }
-
-  if (matched) {
-    return Math.round(total);
-  }
-
-  const bareNumber = text.match(/^(\d+(?:\.\d+)?)$/);
-  return bareNumber ? Math.round(parseFloat(bareNumber[1])) : null;
-}
-
-function formatTotalMinutes(
-  prepTime: string | undefined,
-  cookTime: string | undefined
-): string | null {
-  const prepMins = parseDurationMinutes(prepTime);
-  const cookMins = parseDurationMinutes(cookTime);
-  if (prepMins === null && cookMins === null) {
-    return null;
-  }
-  const total = (prepMins ?? 0) + (cookMins ?? 0);
-  if (total <= 0) {
-    return null;
-  }
-  return `${total} ${total === 1 ? "minute" : "minutes"}`;
-}
+import { getRecipeTitleTransitionName, isSafeImageUrl } from "@/lib/utils";
 
 export interface RecipeCardProps {
   recipe: Recipe;
-  returnState?: RecipesReturnState;
-  ssr: boolean;
 }
 
-export const RecipeCard: FC<RecipeCardProps> = ({
-  recipe,
-  returnState,
-  ssr,
-}) => {
-  const totalMinutesLabel = formatTotalMinutes(
-    recipe.prepTime,
-    recipe.cookTime
-  );
+export const RecipeCard: FC<RecipeCardProps> = ({ recipe }) => {
+  const prepTime = recipe.prepTime?.trim();
+  const cookTime = recipe.cookTime?.trim();
 
   return (
     <ViewTransition
@@ -85,16 +30,12 @@ export const RecipeCard: FC<RecipeCardProps> = ({
         <Item
           asChild
           variant="outline"
-          className={cn(
-            "rounded-md bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
-            ssr && "ssr"
-          )}
+          className="rounded-md bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all"
         >
           <Link
             to={href("/recipes/:recipeId", {
               recipeId: recipe.id,
             })}
-            state={returnState}
             prefetch="intent"
           >
             {isSafeImageUrl(recipe.imageUri) && (
@@ -136,7 +77,8 @@ export const RecipeCard: FC<RecipeCardProps> = ({
                     • {recipe.likes} {recipe.likes === 1 ? "like" : "likes"}
                   </span>
                 )}
-                {totalMinutesLabel && <span>• {totalMinutesLabel}</span>}
+                {prepTime && <span>• {prepTime} prep</span>}
+                {cookTime && <span>• {cookTime} cook</span>}
               </div>
               {recipe.tags?.length > 0 && (
                 <ul aria-label="Tags" className="flex flex-wrap gap-1.5 pt-0.5">

@@ -12,20 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/firebase/data";
 import { useAuthUser } from "@/firebase/auth";
-import { useBackToRecipesHref } from "@/lib/navigation";
-import {
-  cn,
-  getRecipeTitleTransitionName,
-  isSafeImageUrl,
-  NAV_RECIPES_TRANSITION_NAME,
-} from "@/lib/utils";
+import { cn, getRecipeTitleTransitionName, isSafeImageUrl } from "@/lib/utils";
 
 interface RecipeDetailProps {
   recipe: Recipe;
   isLiked?: boolean;
   likeStateReady?: boolean;
   readonly?: boolean;
-  ssr?: boolean;
 }
 
 const RecipeDetail: FC<RecipeDetailProps> = ({
@@ -33,11 +26,9 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   isLiked = false,
   likeStateReady = true,
   readonly = false,
-  ssr = false,
 }) => {
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
   const { user, authReady } = useAuthUser();
-  const { backHref, recipesSearch } = useBackToRecipesHref();
   const [hoveredStar, setHoveredStar] = useState(0);
 
   const isLikeDisabled = !authReady || !likeStateReady;
@@ -95,12 +86,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const handleDelete = () => {
     if (!user || user.uid !== recipe.authorId) return;
     if (confirm("Are you sure you want to delete this recipe?")) {
-      void fetcher.submit(
-        recipesSearch
-          ? { intent: "delete", recipesSearch }
-          : { intent: "delete" },
-        { method: "post" }
-      );
+      void fetcher.submit({ intent: "delete" }, { method: "post" });
     }
   };
 
@@ -125,29 +111,18 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
     <div className="max-w-2xl mx-auto w-full space-y-4">
       {!readonly && (
         <nav aria-label="Breadcrumb">
-          <ViewTransition
-            name={NAV_RECIPES_TRANSITION_NAME}
-            default="none"
-            share="vt-nav-back"
+          <Link
+            to={href("/recipes")}
+            prefetch="intent"
+            className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Link
-              to={backHref}
-              prefetch="intent"
-              className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft aria-hidden="true" className="w-4 h-4" />
-              <span>Back to recipes</span>
-            </Link>
-          </ViewTransition>
+            <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+            <span>Back to recipes</span>
+          </Link>
         </nav>
       )}
 
-      <article
-        className={cn(
-          "bg-card w-full relative shadow-xs border rounded-md overflow-hidden",
-          ssr && "ssr"
-        )}
-      >
+      <article className="bg-card w-full relative shadow-xs border rounded-md overflow-hidden">
         {isSafeImageUrl(recipe.imageUri) ? (
           <div className="relative w-full aspect-[16/7] bg-muted">
             <img

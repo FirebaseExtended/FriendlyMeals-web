@@ -7,8 +7,8 @@ import { SignInAuthScreen } from "@/components/sign-in-auth-screen";
 import { SignUpAuthScreen } from "@/components/sign-up-auth-screen";
 import { Spinner } from "@/components/ui/spinner";
 import { getFirebaseUI, waitForAuthReady } from "@/firebase/auth";
-import { useWasServerRendered } from "@/lib/ssr";
-import { cn } from "@/lib/utils";
+
+export const handle = { hideHeaderActions: true };
 
 export function headers() {
   return { "Cache-Control": "private, no-store" };
@@ -28,7 +28,8 @@ function getSafeRedirectPath(rawRedirect: string | null): string {
   if (
     !rawRedirect ||
     !rawRedirect.startsWith("/") ||
-    rawRedirect.startsWith("//")
+    rawRedirect.startsWith("//") ||
+    rawRedirect.startsWith("/\\")
   ) {
     return href("/generate");
   }
@@ -49,16 +50,9 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 clientLoader.hydrate = true as const;
 
 export function HydrateFallback() {
-  const isSsr = useWasServerRendered();
-
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4">
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-md px-6 py-4 text-muted-foreground",
-          isSsr && "ssr"
-        )}
-      >
+      <div className="flex items-center gap-2 rounded-md px-6 py-4 text-muted-foreground">
         <Spinner className="h-5 w-5" />
         <span>Loading sign-in...</span>
       </div>

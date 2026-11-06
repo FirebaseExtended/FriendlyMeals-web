@@ -1,17 +1,24 @@
-import { useEffect, useState, ViewTransition, type FC } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useState,
+  ViewTransition,
+  type FC,
+} from "react";
 import {
   data,
   href,
   Link,
   redirect,
-  useLocation,
+  useFetcher,
   useNavigation,
   useRevalidator,
   useSearchParams,
 } from "react-router";
-import { BookOpen, Heart, Search, Sparkles } from "lucide-react";
+import { BookOpen, Database, Heart, Search, Sparkles } from "lucide-react";
 import type { Route } from "./+types/recipes";
 import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
+import { reportClientError } from "@/firebase/crashlytics";
 import {
   getTop5Tags,
   MAX_RECIPES_LIMIT,
@@ -34,15 +41,10 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  buildRecipesReturnState,
-  type RecipesReturnState,
-} from "@/lib/navigation";
-import {
   isLikedFilterEnabled,
   parseFiltersFromUrl,
   parseLimitParam,
 } from "@/lib/recipes-catalog";
-import { isDebugSsrEnabled } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
 
 // Omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`
@@ -84,7 +86,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         recipes: [] as Recipe[],
         hasMore: false,
         topTags,
-        ssr: true,
+        likedAuthChecked: false,
         likedResolvedForUid: null as string | null,
       },
       {
@@ -94,17 +96,14 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   const payload = await loadRecipesCatalog(request);
-  const cacheControl = isDebugSsrEnabled(url.searchParams)
-    ? "private, no-store"
-    : PUBLIC_RECIPES_CACHE_CONTROL;
   return data(
     {
       ...payload,
-      ssr: true,
+      likedAuthChecked: false,
       likedResolvedForUid: null as string | null,
     },
     {
-      headers: { "Cache-Control": cacheControl },
+      headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
     }
   );
 }
@@ -126,7 +125,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     const payload = await loadRecipesCatalog(request, user.uid);
     return {
       ...payload,
-      ssr: false,
+      likedAuthChecked: true,
       likedResolvedForUid: user.uid,
     };
   }
@@ -134,34 +133,102 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const payload = await loadRecipesCatalog(request);
   return {
     ...payload,
-    ssr: false,
+    likedAuthChecked: true,
     likedResolvedForUid: null as string | null,
   };
 }
 
-const ZeroState: FC<{
-  ssr: boolean;
-  returnState?: RecipesReturnState;
-}> = ({ ssr, returnState }) => {
+export async function clientAction({ request }: Route.ClientActionArgs) {
+  const user = await waitForAuthReady();
+  if (!user) {
+    return redirect(
+      `${href("/login")}?redirectTo=${encodeURIComponent(href("/recipes"))}`
+    );
+  }
+
+  const formData = await request.formData();
+  if (formData.get("intent") !== "seed") {
+    return data(
+      { ok: false as const, error: "Unsupported action." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const { seedSampleRecipes } = await import("@/firebase/seed.client");
+    await seedSampleRecipes(user.uid);
+    return { ok: true as const };
+  } catch (error) {
+    reportClientError(error, { action: "seedSampleRecipes" });
+    return data(
+      {
+        ok: false as const,
+        error: "Couldn't seed sample recipes right now. Please try again.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+const ZeroState: FC = () => {
+  const { authReady } = useAuthUser();
+  const seedFetcher = useFetcher<typeof clientAction>();
+  const isSeeding = seedFetcher.state !== "idle";
+  const seedError =
+    seedFetcher.state === "idle" && seedFetcher.data && !seedFetcher.data.ok
+      ? seedFetcher.data.error
+      : undefined;
+
   return (
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
-      <Empty className={cn("border border-dashed bg-card", ssr && "ssr")}>
+      <Empty className="border border-dashed bg-card">
         <EmptyMedia variant="icon">
           <BookOpen aria-hidden="true" className="h-6 w-6" />
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>No recipes yet</EmptyTitle>
           <EmptyDescription>
-            Generate a recipe with Gemini to start building the community
-            cookbook.
+            Generate a recipe with Gemini or seed starter recipes to build the
+            community cookbook.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button asChild>
-            <Link to={href("/generate")} state={returnState} prefetch="intent">
-              Generate Recipe
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button asChild>
+              <Link to={href("/generate")} prefetch="intent">
+                Generate Recipe
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!authReady || isSeeding}
+              onClick={() => {
+                void seedFetcher.submit({ intent: "seed" }, { method: "post" });
+              }}
+              className={cn(
+                "gap-1.5 bg-card",
+                isSeeding && "disabled:opacity-100"
+              )}
+            >
+              {isSeeding ? (
+                <>
+                  <Spinner className="size-4" />
+                  <span>Seeding recipes...</span>
+                </>
+              ) : (
+                <>
+                  <Database aria-hidden="true" className="size-4" />
+                  <span>Seed 20 recipes</span>
+                </>
+              )}
+            </Button>
+          </div>
+          {seedError && (
+            <p role="alert" className="mt-2 text-xs text-destructive">
+              {seedError}
+            </p>
+          )}
         </EmptyContent>
       </Empty>
     </div>
@@ -169,20 +236,15 @@ const ZeroState: FC<{
 };
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const { recipes, hasMore, topTags, ssr, likedResolvedForUid } = loaderData;
+  const { recipes, hasMore, topTags, likedAuthChecked, likedResolvedForUid } =
+    loaderData;
   const { user, authReady } = useAuthUser();
-  const location = useLocation();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
   const recipesPath = href("/recipes");
-  const currentCatalogSearch =
-    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
-      ? navigation.location.search
-      : location.search;
-  const returnState = buildRecipesReturnState(currentCatalogSearch);
 
   const activeQueryText = searchParams.get("q")?.trim() || "";
   const activeLikedOnly = isLikedFilterEnabled(searchParams.get("liked"));
@@ -195,30 +257,34 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     activeTags.length > 0;
 
   const currentUid = user?.uid ?? null;
+  const needsLikedRevalidation =
+    !likedAuthChecked || likedResolvedForUid !== currentUid;
+
+  const triggerRevalidation = useEffectEvent(() => {
+    void revalidator.revalidate();
+  });
 
   // Hydrate or redirect `?liked=1` via clientLoader once browser Firebase Auth is ready
   useEffect(() => {
     if (
       activeLikedOnly &&
       authReady &&
-      (ssr || likedResolvedForUid !== currentUid) &&
+      needsLikedRevalidation &&
       revalidator.state === "idle" &&
       navigation.state === "idle"
     ) {
-      void revalidator.revalidate();
+      triggerRevalidation();
     }
   }, [
     activeLikedOnly,
     authReady,
-    ssr,
-    likedResolvedForUid,
-    currentUid,
-    revalidator,
+    needsLikedRevalidation,
+    revalidator.state,
     navigation.state,
   ]);
 
   if ((!recipes || recipes.length === 0) && !hasFilters) {
-    return <ZeroState ssr={ssr} returnState={returnState} />;
+    return <ZeroState />;
   }
 
   const currentLimit = parseLimitParam(searchParams.get("limit"));
@@ -241,8 +307,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const canFilterByLikes = authReady && Boolean(user);
   const isSignedOut = authReady && !user;
   const isResolvingLikedCatalog =
-    activeLikedOnly &&
-    (!authReady || ssr || likedResolvedForUid !== currentUid);
+    activeLikedOnly && (!authReady || needsLikedRevalidation);
 
   const countLabel = isResolvingLikedCatalog
     ? "…"
@@ -259,7 +324,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4">
       <div className="md:col-start-2 md:row-start-1">
-        <SearchBar ssr={ssr} />
+        <SearchBar />
       </div>
 
       <aside
@@ -272,7 +337,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           availableTags={topTags}
           canFilterByLikes={canFilterByLikes}
           isSignedOut={isSignedOut}
-          ssr={ssr}
         />
       </aside>
 
@@ -291,16 +355,11 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             </span>
           </h1>
 
-          <SortControl ssr={ssr} />
+          <SortControl />
         </div>
 
         {isResolvingLikedCatalog ? (
-          <div
-            className={cn(
-              "flex flex-col items-center justify-center gap-3 rounded-md border bg-card px-6 py-12 text-center shadow-xs",
-              ssr && "ssr"
-            )}
-          >
+          <div className="flex flex-col items-center justify-center gap-3 rounded-md border bg-card px-6 py-12 text-center shadow-xs">
             <Spinner className="size-5 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               Loading your liked recipes...
@@ -313,12 +372,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             enter="vt-recipe-card-enter"
             exit="vt-recipe-card-exit"
           >
-            <div
-              className={cn(
-                "space-y-4 rounded-md border bg-card px-6 py-12 text-center shadow-xs",
-                ssr && "ssr"
-              )}
-            >
+            <div className="space-y-4 rounded-md border bg-card px-6 py-12 text-center shadow-xs">
               <div className="mx-auto flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
                 {activeQueryText ? (
                   <Sparkles aria-hidden="true" className="size-5" />
@@ -349,7 +403,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                   <Button asChild size="sm">
                     <Link
                       to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
-                      state={returnState}
                       prefetch="intent"
                     >
                       Generate a "{activeQueryText}" recipe
@@ -363,12 +416,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           <>
             <ul className="group/item-group flex flex-col gap-3">
               {recipes.map((recipe: Recipe) => (
-                <RecipeCard
-                  key={recipe.id}
-                  recipe={recipe}
-                  returnState={returnState}
-                  ssr={ssr}
-                />
+                <RecipeCard key={recipe.id} recipe={recipe} />
               ))}
             </ul>
 
@@ -380,10 +428,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                       type="button"
                       variant="outline"
                       disabled
-                      className={cn(
-                        "h-10 w-full sm:w-auto rounded-md bg-card px-6 shadow-xs disabled:opacity-100",
-                        ssr && "ssr"
-                      )}
+                      className="h-10 w-full sm:w-auto rounded-md bg-card px-6 shadow-xs disabled:opacity-100"
                     >
                       <Spinner className="size-4" />
                       <span>Loading recipes...</span>
@@ -392,10 +437,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                     <Button
                       asChild
                       variant="outline"
-                      className={cn(
-                        "h-10 w-full sm:w-auto rounded-md bg-card px-6 shadow-xs hover:border-primary/40 hover:bg-accent/50",
-                        ssr && "ssr"
-                      )}
+                      className="h-10 w-full sm:w-auto rounded-md bg-card px-6 shadow-xs hover:border-primary/40 hover:bg-accent/50"
                     >
                       <Link to={showMoreHref} replace preventScrollReset>
                         Show more recipes

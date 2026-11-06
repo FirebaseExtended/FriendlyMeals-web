@@ -23,7 +23,6 @@ export interface FilterPanelProps {
   availableTags: string[];
   canFilterByLikes: boolean;
   isSignedOut: boolean;
-  ssr: boolean;
 }
 
 export const FilterPanel: FC<FilterPanelProps> = ({
@@ -32,7 +31,6 @@ export const FilterPanel: FC<FilterPanelProps> = ({
   availableTags,
   canFilterByLikes,
   isSignedOut,
-  ssr,
 }) => {
   const activeSearchParams = useOptimisticRecipesSearchParams();
   const submit = useSubmit();
@@ -88,7 +86,6 @@ export const FilterPanel: FC<FilterPanelProps> = ({
   };
 
   const hasPanelFilters = likedOnly || minRating > 0 || selectedTags.length > 0;
-  const debugSsrParam = activeSearchParams.get("debugSSR");
 
   const resetParams = new URLSearchParams();
   if (queryText) {
@@ -96,9 +93,6 @@ export const FilterPanel: FC<FilterPanelProps> = ({
   }
   if (sortBy !== DEFAULT_SORT) {
     resetParams.set("sort", sortBy);
-  }
-  if (debugSsrParam !== null) {
-    resetParams.set("debugSSR", debugSsrParam);
   }
   const resetQs = resetParams.toString();
   const resetHref = resetQs ? `${recipesPath}?${resetQs}` : recipesPath;
@@ -113,10 +107,7 @@ export const FilterPanel: FC<FilterPanelProps> = ({
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls="recipe-filters"
-        className={cn(
-          "flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden",
-          ssr && !isOpen && "ssr"
-        )}
+        className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors md:hidden"
       >
         <div className="flex items-center gap-2">
           <SlidersHorizontal
@@ -151,8 +142,7 @@ export const FilterPanel: FC<FilterPanelProps> = ({
         aria-label="Filter recipes"
         className={cn(
           "border-t p-4 md:rounded-md md:border md:bg-card md:p-4 md:shadow-xs",
-          !isOpen && "hidden md:block",
-          ssr && "ssr"
+          !isOpen && "hidden md:block"
         )}
       >
         <FieldGroup className="gap-5">

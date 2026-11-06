@@ -197,25 +197,6 @@
   height: auto;
 }
 
-::view-transition-group(.vt-nav-back),
-::view-transition-group(.vt-generate-cta) {
-  z-index: 4;
-  animation-duration: 200ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-::view-transition-old(.vt-nav-back),
-::view-transition-new(.vt-nav-back) {
-  height: 100%;
-  width: auto;
-}
-
-::view-transition-old(.vt-generate-cta),
-::view-transition-new(.vt-generate-cta) {
-  height: 100%;
-  width: 100%;
-}
-
 /* Recipe card list transitions (filter enter/exit & sort/filter reorder) */
 @keyframes vt-card-enter {
   from {
@@ -265,26 +246,9 @@
   ::view-transition-group(.vt-recipe-title),
   ::view-transition-old(.vt-recipe-title),
   ::view-transition-new(.vt-recipe-title),
-  ::view-transition-group(.vt-nav-back),
-  ::view-transition-old(.vt-nav-back),
-  ::view-transition-new(.vt-nav-back),
-  ::view-transition-group(.vt-generate-cta),
-  ::view-transition-old(.vt-generate-cta),
-  ::view-transition-new(.vt-generate-cta),
   ::view-transition-group(.vt-recipe-card-move),
   ::view-transition-new(.vt-recipe-card-enter):only-child,
   ::view-transition-old(.vt-recipe-card-exit):only-child {
     animation: none;
   }
-}
-
-/* Visual indicator for server-rendered (SSR) components (?debugSSR) */
-.debug-ssr .ssr {
-  outline: 2px solid var(--color-blue-500, #3b82f6);
-  outline-offset: -2px;
-}
-
-.dark .debug-ssr .ssr,
-.dark.debug-ssr .ssr {
-  outline-color: var(--color-blue-400, #60a5fa);
 }

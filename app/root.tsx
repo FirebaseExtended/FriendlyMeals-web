@@ -7,12 +7,9 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useSearchParams,
 } from "react-router";
 import type { Route } from "./+types/root";
 import { Button } from "@/components/ui/button";
-import { isDebugSsrEnabled, useWasServerRendered } from "@/lib/ssr";
-import { cn } from "@/lib/utils";
 import "./index.css";
 
 export const links: Route.LinksFunction = () => [
@@ -29,9 +26,6 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [searchParams] = useSearchParams();
-  const debugSsr = isDebugSsrEnabled(searchParams);
-
   return (
     <html lang="en">
       <head>
@@ -41,7 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className={debugSsr ? "debug-ssr" : undefined}>
+      <body>
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -55,7 +49,6 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const isSsr = useWasServerRendered();
   let message = "Oops!";
   let details = "An unexpected error occurred.";
   let stack: string | undefined;
@@ -76,12 +69,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main
-      className={cn(
-        "container mx-auto my-12 max-w-2xl rounded-md p-6 space-y-4",
-        isSsr && "ssr"
-      )}
-    >
+    <main className="container mx-auto my-12 max-w-2xl rounded-md p-6 space-y-4">
       <h1 className="text-4xl font-bold text-destructive">{message}</h1>
       <p className="text-lg text-muted-foreground">{details}</p>
       <div>

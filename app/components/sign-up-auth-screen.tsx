@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useRef } from "react";
 import type { User } from "firebase/auth";
 import { getTranslation } from "@firebase-oss/ui-core";
 import {
@@ -31,16 +31,13 @@ export function SignUpAuthScreen({
   const titleText = getTranslation(ui, "labels", "signUp");
   const subtitleText = getTranslation(ui, "prompts", "enterDetailsToCreate");
 
-  const handleSignUp = useCallback(
-    (user: User) => {
-      if (handledUserIdRef.current === user.uid) {
-        return;
-      }
-      handledUserIdRef.current = user.uid;
-      onSignUp?.(user);
-    },
-    [onSignUp]
-  );
+  const handleSignUp = (user: User) => {
+    if (handledUserIdRef.current === user.uid) {
+      return;
+    }
+    handledUserIdRef.current = user.uid;
+    onSignUp?.(user);
+  };
 
   useOnUserAuthenticated(children ? handleSignUp : undefined);
 

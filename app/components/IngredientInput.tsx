@@ -1,7 +1,7 @@
-import { useState, ViewTransition, type FC } from "react";
+import { useState, type FC } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { cn, GENERATE_CTA_TRANSITION_NAME } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const CUISINES = [
   { label: "Any cuisine", value: "" },
@@ -12,28 +12,28 @@ const CUISINES = [
 ] as const;
 
 interface IngredientInputProps {
-  handleSubmit: (ingredients: string, cuisineType: string) => Promise<void>;
+  ingredients: string;
+  onIngredientsChange: (value: string) => void;
+  cuisineType: string;
+  onCuisineTypeChange: (value: string) => void;
+  handleSubmit: () => void;
   isLoading: boolean | string;
-  initialIngredients?: string;
   submitDisabled?: boolean;
   hasPreview?: boolean;
-  shareSubmitTransition?: boolean;
   onCancelEdit?: () => void;
-  ssr?: boolean;
 }
 
 export const IngredientInput: FC<IngredientInputProps> = ({
+  ingredients,
+  onIngredientsChange,
+  cuisineType,
+  onCuisineTypeChange,
   handleSubmit,
   isLoading,
-  initialIngredients = "",
   submitDisabled = false,
   hasPreview = false,
-  shareSubmitTransition = true,
   onCancelEdit,
-  ssr = false,
 }) => {
-  const [ingredients, setIngredients] = useState(initialIngredients);
-  const [cuisineType, setCuisineType] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const busy = Boolean(isLoading);
 
@@ -46,28 +46,8 @@ export const IngredientInput: FC<IngredientInputProps> = ({
       return;
     }
     setFieldError(null);
-    void handleSubmit(ingredients, cuisineType);
+    handleSubmit();
   };
-
-  const submitButton = (
-    <Button
-      type="submit"
-      size="sm"
-      disabled={busy || submitDisabled}
-      className={cn("rounded-md px-4 gap-1.5", busy && "disabled:opacity-100")}
-    >
-      {busy && <Spinner className="size-4" />}
-      <span>
-        {busy
-          ? typeof isLoading === "string"
-            ? `${isLoading}...`
-            : "Generating..."
-          : hasPreview
-            ? "Regenerate"
-            : "Generate Recipe"}
-      </span>
-    </Button>
-  );
 
   return (
     <form
@@ -78,8 +58,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
       className={cn(
         "rounded-md border bg-card shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20",
         fieldError &&
-          "border-destructive/60 focus-within:border-destructive focus-within:ring-destructive/20",
-        ssr && "ssr"
+          "border-destructive/60 focus-within:border-destructive focus-within:ring-destructive/20"
       )}
     >
       <label htmlFor="ingredients-input" className="sr-only">
@@ -93,7 +72,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
         placeholder="e.g., ripe bananas, day-old muffins, blueberries, cinnamon..."
         value={ingredients}
         onChange={(e) => {
-          setIngredients(e.target.value);
+          onIngredientsChange(e.target.value);
           if (fieldError && e.target.value.trim()) {
             setFieldError(null);
           }
@@ -130,7 +109,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
                   type="button"
                   disabled={busy}
                   aria-pressed={selected}
-                  onClick={() => setCuisineType(option.value)}
+                  onClick={() => onCuisineTypeChange(option.value)}
                   className={cn(
                     "rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
                     selected
@@ -157,17 +136,26 @@ export const IngredientInput: FC<IngredientInputProps> = ({
               Cancel
             </Button>
           )}
-          {shareSubmitTransition ? (
-            <ViewTransition
-              name={GENERATE_CTA_TRANSITION_NAME}
-              default="none"
-              share="vt-generate-cta"
-            >
-              {submitButton}
-            </ViewTransition>
-          ) : (
-            submitButton
-          )}
+          <Button
+            type="submit"
+            size="sm"
+            disabled={busy || submitDisabled}
+            className={cn(
+              "rounded-md px-4 gap-1.5",
+              busy && "disabled:opacity-100"
+            )}
+          >
+            {busy && <Spinner className="size-4" />}
+            <span>
+              {busy
+                ? typeof isLoading === "string"
+                  ? `${isLoading}...`
+                  : "Generating..."
+                : hasPreview
+                  ? "Regenerate"
+                  : "Generate Recipe"}
+            </span>
+          </Button>
         </div>
       </div>
     </form>

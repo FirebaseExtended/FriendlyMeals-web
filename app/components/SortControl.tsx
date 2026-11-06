@@ -7,9 +7,8 @@ import {
   SORT_OPTIONS,
   useOptimisticRecipesSearchParams,
 } from "@/lib/recipes-catalog";
-import { cn } from "@/lib/utils";
 
-export const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
+export const SortControl: FC = () => {
   const activeSearchParams = useOptimisticRecipesSearchParams();
   const submit = useSubmit();
   const recipesPath = href("/recipes");
@@ -46,10 +45,7 @@ export const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
         name="sort"
         value={activeSort}
         onChange={(e) => handleSortChange(e.target.value)}
-        className={cn(
-          "h-8 w-auto rounded-md bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs",
-          ssr && "ssr"
-        )}
+        className="h-8 w-auto rounded-md bg-card pl-2.5 pr-7 text-xs font-medium text-foreground md:text-xs"
       >
         {SORT_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>

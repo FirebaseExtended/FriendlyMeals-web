@@ -3,6 +3,7 @@ import {
   Form,
   href,
   NavigationType,
+  useLocation,
   useNavigation,
   useNavigationType,
   useSearchParams,
@@ -11,17 +12,12 @@ import {
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  DEFAULT_SORT,
-  isLikedFilterEnabled,
-  parseSortParam,
-  useOptimisticRecipesSearchParams,
-} from "@/lib/recipes-catalog";
-import { cn } from "@/lib/utils";
+import { useOptimisticRecipesSearchParams } from "@/lib/recipes-catalog";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
+export const SearchBar: FC = () => {
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const activeSearchParams = useOptimisticRecipesSearchParams();
   const navigationType = useNavigationType();
@@ -30,23 +26,67 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const recipesPath = href("/recipes");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const targetLocation =
+    navigation.location?.pathname === recipesPath
+      ? navigation.location
+      : location;
   const urlQuery = searchParams.get("q") || "";
+  const targetUrlQuery = activeSearchParams.get("q") || "";
+  const prevUrlQueryRef = useRef(targetUrlQuery);
+  const prevTargetKeyRef = useRef(targetLocation.key);
+  const prevCommittedKeyRef = useRef(location.key);
   const [liveQuery, setLiveQuery] = useState(urlQuery);
 
-  const syncFromUrl = useEffectEvent((nextUrlQuery: string) => {
-    if (
-      navigationType === NavigationType.Pop ||
-      document.activeElement !== inputRef.current
-    ) {
-      setLiveQuery(nextUrlQuery);
+  const clearPendingDebounce = () => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-  });
+  };
+
+  const syncFromUrl = useEffectEvent(
+    (
+      nextUrlQuery: string,
+      nextTargetKey: string,
+      committedLocationKey: string
+    ) => {
+      const urlQueryChanged = prevUrlQueryRef.current !== nextUrlQuery;
+      const targetKeyChanged = prevTargetKeyRef.current !== nextTargetKey;
+      const committedKeyChanged =
+        prevCommittedKeyRef.current !== committedLocationKey;
+      prevUrlQueryRef.current = nextUrlQuery;
+      prevTargetKeyRef.current = nextTargetKey;
+      prevCommittedKeyRef.current = committedLocationKey;
+
+      if (!urlQueryChanged && !targetKeyChanged && !committedKeyChanged) {
+        return;
+      }
+
+      // Don't wipe an in-progress search draft when the user clicks a filter or sort control mid-debounce.
+      if (
+        !urlQueryChanged &&
+        navigationType !== NavigationType.Pop &&
+        document.activeElement?.closest("#recipe-filters, #recipe-sort")
+      ) {
+        return;
+      }
+
+      if (
+        navigationType === NavigationType.Pop ||
+        document.activeElement !== inputRef.current
+      ) {
+        clearPendingDebounce();
+        setLiveQuery(nextUrlQuery);
+      }
+    }
+  );
 
   // Sync controlled input on Back/Forward ("POP") or external resets (e.g. header brand link)
   useEffect(() => {
-    syncFromUrl(urlQuery);
-  }, [urlQuery]);
+    syncFromUrl(targetUrlQuery, targetLocation.key, location.key);
+  }, [targetUrlQuery, targetLocation.key, location.key]);
 
   const submitSearch = (nextValue: string, force = false) => {
     const trimmed = nextValue.trim();
@@ -78,23 +118,27 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
 
   // Debounce live typing before committing `?q=` to the URL and querying Firestore
   useEffect(() => {
+    if (liveQuery.trim() === targetUrlQuery.trim()) {
+      return;
+    }
     const timer = setTimeout(() => {
+      timerRef.current = null;
       onDebouncedSearch(liveQuery);
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [liveQuery]);
+    timerRef.current = timer;
+    return () => {
+      clearTimeout(timer);
+      if (timerRef.current === timer) {
+        timerRef.current = null;
+      }
+    };
+  }, [liveQuery, targetUrlQuery]);
 
   const isSearching =
     navigation.state !== "idle" &&
     navigation.location?.pathname === recipesPath &&
     (new URLSearchParams(navigation.location.search).get("q") || "") !==
       urlQuery;
-
-  const minRatingParam = activeSearchParams.get("minRating");
-  const tagsParam = activeSearchParams.get("tags");
-  const likedOnlyParam = isLikedFilterEnabled(activeSearchParams.get("liked"));
-  const sortParam = parseSortParam(activeSearchParams.get("sort"));
-  const debugSsrParam = activeSearchParams.get("debugSSR");
 
   return (
     <Form
@@ -104,21 +148,21 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
       aria-label="Search recipes"
       onSubmit={(e) => {
         e.preventDefault();
+        clearPendingDebounce();
         submitSearch(liveQuery, true);
       }}
       className="relative"
     >
-      {minRatingParam && (
-        <input type="hidden" name="minRating" value={minRatingParam} />
-      )}
-      {tagsParam && <input type="hidden" name="tags" value={tagsParam} />}
-      {likedOnlyParam && <input type="hidden" name="liked" value="1" />}
-      {sortParam !== DEFAULT_SORT && (
-        <input type="hidden" name="sort" value={sortParam} />
-      )}
-      {debugSsrParam !== null && (
-        <input type="hidden" name="debugSSR" value={debugSsrParam} />
-      )}
+      {[...activeSearchParams.entries()]
+        .filter(([key]) => key !== "q" && key !== "limit")
+        .map(([key, value]) => (
+          <input
+            key={`${key}:${value}`}
+            type="hidden"
+            name={key}
+            value={value}
+          />
+        ))}
 
       {isSearching ? (
         <Spinner className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -137,15 +181,13 @@ export const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         placeholder="Search recipes by title, ingredient, or tag..."
         value={liveQuery}
         onChange={(e) => setLiveQuery(e.target.value)}
-        className={cn(
-          "h-11 rounded-md bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden",
-          ssr && "ssr"
-        )}
+        className="h-11 rounded-md bg-card pl-10 pr-9 [&::-webkit-search-cancel-button]:hidden"
       />
       {liveQuery.length > 0 && (
         <button
           type="button"
           onClick={() => {
+            clearPendingDebounce();
             setLiveQuery("");
             submitSearch("", true);
             inputRef.current?.focus();

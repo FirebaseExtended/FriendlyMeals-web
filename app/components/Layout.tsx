@@ -1,24 +1,17 @@
-import { ViewTransition, type FC, type ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import {
   href,
   isRouteErrorResponse,
   Link,
   Outlet,
   useLocation,
-  useMatch,
   useMatches,
   useNavigation,
 } from "react-router";
 import type { Route } from "./+types/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/firebase/auth";
-import { buildRecipesReturnState } from "@/lib/navigation";
-import { useWasServerRendered } from "@/lib/ssr";
-import {
-  cn,
-  GENERATE_CTA_TRANSITION_NAME,
-  NAV_RECIPES_TRANSITION_NAME,
-} from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const FirebaseLogo: FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -45,32 +38,32 @@ const FirebaseLogo: FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+type RouteHandle = {
+  hideHeader?: boolean;
+  hideHeaderActions?: boolean;
+};
+
 const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
   children,
   forceHeader = false,
 }) => {
-  const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
   const location = useLocation();
   const navigation = useNavigation();
   const matches = useMatches();
-  const recipesPath = href("/recipes");
-  const onRecipes = Boolean(useMatch(recipesPath));
-  const onLogin = Boolean(useMatch(href("/login")));
   const hideHeaderFromRoute = matches.some((match) =>
-    Boolean((match.handle as { hideHeader?: boolean } | undefined)?.hideHeader)
+    Boolean((match.handle as RouteHandle | undefined)?.hideHeader)
+  );
+  const hideHeaderActions = matches.some((match) =>
+    Boolean((match.handle as RouteHandle | undefined)?.hideHeaderActions)
   );
   const showHeader = forceHeader || !hideHeaderFromRoute;
-
-  const currentRecipesSearch =
-    onRecipes &&
-    navigation.state !== "idle" &&
-    navigation.location?.pathname === recipesPath
-      ? navigation.location.search
-      : location.search;
-  const generateReturnState = onRecipes
-    ? buildRecipesReturnState(currentRecipesSearch)
-    : undefined;
+  const loginPath = href("/login");
+  const targetLocation =
+    navigation.location && navigation.location.pathname !== loginPath
+      ? navigation.location
+      : location;
+  const signInHref = `${loginPath}?redirectTo=${encodeURIComponent(`${targetLocation.pathname}${targetLocation.search}`)}`;
 
   return (
     <div
@@ -80,52 +73,34 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
       )}
     >
       {showHeader && (
-        <header className={cn("border-b bg-card", isSsr && "ssr")}>
+        <header className="border-b bg-card">
           <nav
             aria-label="Primary"
             className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6"
           >
-            <ViewTransition
-              name={NAV_RECIPES_TRANSITION_NAME}
-              default="none"
-              share="vt-nav-back"
+            <Link
+              to={href("/recipes")}
+              prefetch="intent"
+              className="inline-flex w-fit items-center font-display text-2xl sm:text-[1.65rem] font-normal tracking-wide hover:opacity-85 transition-opacity"
             >
-              <Link
-                to={href("/recipes")}
-                prefetch="intent"
-                className="inline-flex w-fit items-center font-display text-2xl sm:text-[1.65rem] font-normal tracking-wide hover:opacity-85 transition-opacity"
-              >
-                Friendly Meals
-              </Link>
-            </ViewTransition>
+              Friendly Meals
+            </Link>
 
-            {onLogin ? (
+            {hideHeaderActions ? (
               <div aria-hidden="true" className="h-8 w-28" />
-            ) : !authReady || user ? (
-              <ViewTransition
-                name={GENERATE_CTA_TRANSITION_NAME}
-                default="none"
-                share="vt-generate-cta"
-              >
-                {!authReady ? (
-                  <Button type="button" size="sm" disabled className="w-28">
-                    Generate
-                  </Button>
-                ) : (
-                  <Button asChild size="sm" className="w-28">
-                    <Link
-                      to={href("/generate")}
-                      state={generateReturnState}
-                      prefetch="intent"
-                    >
-                      Generate
-                    </Link>
-                  </Button>
-                )}
-              </ViewTransition>
+            ) : !authReady ? (
+              <Button type="button" size="sm" disabled className="w-28">
+                Generate
+              </Button>
+            ) : user ? (
+              <Button asChild size="sm" className="w-28">
+                <Link to={href("/generate")} prefetch="intent">
+                  Generate
+                </Link>
+              </Button>
             ) : (
               <Button asChild variant="outline" size="sm" className="w-28">
-                <Link to={href("/login")} prefetch="intent">
+                <Link to={signInHref} prefetch="intent">
                   Sign in
                 </Link>
               </Button>
@@ -136,12 +111,7 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
       <main className="mx-auto w-full min-w-0 max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         {children}
       </main>
-      <footer
-        className={cn(
-          "mx-auto flex w-full max-w-5xl items-center justify-center px-4 py-5 text-xs text-muted-foreground sm:px-6",
-          isSsr && "ssr"
-        )}
-      >
+      <footer className="mx-auto flex w-full max-w-5xl items-center justify-center px-4 py-5 text-xs text-muted-foreground sm:px-6">
         <a
           href="https://firebase.google.com"
           target="_blank"
@@ -157,7 +127,6 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
 };
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const isSsr = useWasServerRendered();
   let heading = "Something went wrong";
   let details = "An unexpected error occurred while loading this page.";
 
@@ -176,12 +145,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <AppShell forceHeader>
-      <div
-        className={cn(
-          "max-w-xl mx-auto my-12 py-12 px-6 rounded-md text-center space-y-4",
-          isSsr && "ssr"
-        )}
-      >
+      <div className="max-w-xl mx-auto my-12 py-12 px-6 rounded-md text-center space-y-4">
         <h1 className="text-3xl font-bold text-foreground">{heading}</h1>
         <p className="text-muted-foreground">{details}</p>
         <div className="flex justify-center pt-2">
