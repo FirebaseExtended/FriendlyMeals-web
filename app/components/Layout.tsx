@@ -6,64 +6,59 @@ import {
   Outlet,
   useMatch,
 } from "react-router";
-import { ArrowLeft, Flame, Sparkles } from "lucide-react";
+import { Flame, Sparkles } from "lucide-react";
 import type { Route } from "./+types/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/firebase/auth";
 import { useWasServerRendered } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
 
-const AppShell: FC<{ children: ReactNode }> = ({ children }) => {
+const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
+  children,
+  forceHeader = false,
+}) => {
   const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
   const onGenerate = Boolean(useMatch(href("/generate")));
+  const onRecipeDetail = Boolean(useMatch("/recipes/:recipeId"));
   const onLogin = Boolean(useMatch(href("/login")));
+  const showHeader = forceHeader || (!onGenerate && !onRecipeDetail);
 
   return (
     <div className="min-h-screen bg-muted/40">
-      <header className={cn("border-b bg-card", isSsr && "ssr")}>
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Link
-            to={href("/recipes")}
-            className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
-          >
-            <Flame className="w-5 h-5 text-primary" />
-            <span>Friendly Meals</span>
-          </Link>
-
-          {onLogin ? (
-            <div aria-hidden="true" className="h-8 w-28" />
-          ) : onGenerate ? (
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="w-28 gap-1.5 text-muted-foreground hover:text-foreground"
+      {showHeader && (
+        <header className={cn("border-b bg-card", isSsr && "ssr")}>
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <Link
+              to={href("/recipes")}
+              className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight hover:opacity-85 transition-opacity"
             >
-              <Link to={href("/recipes")}>
-                <ArrowLeft className="size-4" />
-                <span>Recipes</span>
-              </Link>
-            </Button>
-          ) : !authReady ? (
-            <Button type="button" size="sm" disabled className="w-28 gap-1.5">
-              <Sparkles className="size-3.5" />
-              <span>Generate</span>
-            </Button>
-          ) : user ? (
-            <Button asChild size="sm" className="w-28 gap-1.5">
-              <Link to={href("/generate")}>
+              <Flame className="w-5 h-5 text-primary" />
+              <span>Friendly Meals</span>
+            </Link>
+
+            {onLogin ? (
+              <div aria-hidden="true" className="h-8 w-28" />
+            ) : !authReady ? (
+              <Button type="button" size="sm" disabled className="w-28 gap-1.5">
                 <Sparkles className="size-3.5" />
                 <span>Generate</span>
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild variant="outline" size="sm" className="w-28">
-              <Link to={href("/login")}>Sign in</Link>
-            </Button>
-          )}
-        </div>
-      </header>
+              </Button>
+            ) : user ? (
+              <Button asChild size="sm" className="w-28 gap-1.5">
+                <Link to={href("/generate")}>
+                  <Sparkles className="size-3.5" />
+                  <span>Generate</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="sm" className="w-28">
+                <Link to={href("/login")}>Sign in</Link>
+              </Button>
+            )}
+          </div>
+        </header>
+      )}
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         {children}
       </main>
@@ -89,7 +84,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <AppShell>
+    <AppShell forceHeader>
       <div
         className={cn(
           "max-w-xl mx-auto my-12 py-12 px-6 rounded-xl text-center space-y-4",

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { href, useNavigate, useSearchParams } from "react-router";
-import { Sparkles } from "lucide-react";
+import { href, Link, useNavigate, useSearchParams } from "react-router";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { IngredientInput } from "@/components/IngredientInput";
 import RecipeDetail from "@/components/Recipe";
 import { Button } from "@/components/ui/button";
@@ -175,10 +175,20 @@ export default function GeneratePage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+      <div>
+        <Link
+          to={href("/recipes")}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to recipes</span>
+        </Link>
+      </div>
+
       <section
         className={cn(
           "space-y-5",
-          !previewRecipe && !isGenerating && "pt-4 sm:pt-8",
+          !previewRecipe && !isGenerating && "pt-1 sm:pt-3",
           !showComposer && "hidden"
         )}
       >

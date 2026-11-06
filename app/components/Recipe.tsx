@@ -118,7 +118,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   );
 
   return (
-    <div className="max-w-2xl mx-auto w-full space-y-3">
+    <div className="max-w-2xl mx-auto w-full space-y-4">
       {!readonly && (
         <div>
           <Link
