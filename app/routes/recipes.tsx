@@ -6,10 +6,12 @@ import {
   Link,
   useLocation,
   useNavigation,
+  useRevalidator,
   useSearchParams,
   useSubmit,
 } from "react-router";
 import {
+  ArrowUp,
   BookOpen,
   ChevronDown,
   ChevronRight,
@@ -22,8 +24,14 @@ import {
 } from "lucide-react";
 import type { Route } from "./+types/recipes";
 import {
+  DEFAULT_RECIPES_LIMIT,
+  doesPreviewMatchFilters,
   getTop5Tags,
+  MAX_RECIPES_LIMIT,
   queryRecipes,
+  RECIPES_LIMIT_STEP,
+  subscribeToRecipesCollection,
+  type LiveRecipePreview,
   type Recipe,
   type RecipeFilters,
   type RecipeSort,
@@ -132,6 +140,17 @@ function parseSortParam(raw: string | null): RecipeSort {
     : DEFAULT_SORT;
 }
 
+function parseLimitParam(raw: string | null): number {
+  if (!raw) {
+    return DEFAULT_RECIPES_LIMIT;
+  }
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return DEFAULT_RECIPES_LIMIT;
+  }
+  return Math.min(MAX_RECIPES_LIMIT, Math.floor(parsed));
+}
+
 function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
   const url = new URL(requestUrl);
   const rawMinRating = Number(url.searchParams.get("minRating"));
@@ -145,16 +164,17 @@ function parseFiltersFromUrl(requestUrl: string): RecipeFilters {
         : undefined,
     tags: rawTags ? rawTags.split(",").filter(Boolean) : undefined,
     sort: parseSortParam(url.searchParams.get("sort")),
+    limit: parseLimitParam(url.searchParams.get("limit")),
   };
 }
 
 async function loadRecipesCatalog(request: Request) {
   const filters = parseFiltersFromUrl(request.url);
-  const [recipes, topTags] = await Promise.all([
+  const [{ recipes, hasMore }, topTags] = await Promise.all([
     queryRecipes(filters),
     getTop5Tags(),
   ]);
-  return { recipes, topTags };
+  return { recipes, hasMore, topTags };
 }
 
 // Initial HTML request renders on Cloud Run so search engines and agents get full HTML
@@ -204,7 +224,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     const ready = await waitWithSignal(SEARCH_DEBOUNCE_MS, request.signal);
     if (!ready) {
       // Aborted by a newer keystroke or navigation; router discards this result via request.signal.aborted
-      return { recipes: [], topTags: [], ssr: false };
+      return { recipes: [], hasMore: false, topTags: [], ssr: false };
     }
   }
 
@@ -212,12 +232,147 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   return { ...payload, ssr: false };
 }
 
-const ZeroState: FC<{ ssr: boolean; returnState?: RecipesReturnState }> = ({
-  ssr,
-  returnState,
-}) => {
+const NewRecipesBanner: FC<{
+  count: number;
+  isRefreshing: boolean;
+  onShow: () => void;
+}> = ({ count, isRefreshing, onShow }) => {
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <ViewTransition
+      key="new-recipes-banner"
+      default="none"
+      enter="vt-recipe-card-enter"
+      exit="vt-recipe-card-exit"
+    >
+      <div className="mb-3 flex justify-center">
+        <button
+          type="button"
+          disabled={isRefreshing}
+          onClick={onShow}
+          aria-live="polite"
+          className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 font-serif text-xs font-medium text-primary shadow-xs transition-all hover:border-primary/50 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70"
+        >
+          {isRefreshing ? (
+            <Spinner className="size-3.5" />
+          ) : (
+            <ArrowUp aria-hidden="true" className="size-3.5" />
+          )}
+          <span>
+            {isRefreshing
+              ? "Loading new recipes..."
+              : `${count} new ${count === 1 ? "recipe" : "recipes"} — Show`}
+          </span>
+        </button>
+      </div>
+    </ViewTransition>
+  );
+};
+
+interface PendingRecipeEntry {
+  preview: LiveRecipePreview;
+  forLoaderData: Route.ComponentProps["loaderData"];
+}
+
+function usePendingNewRecipes(
+  loaderData: Route.ComponentProps["loaderData"],
+  activeFilters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating">
+): number {
+  const latestLoaderDataRef = useRef(loaderData);
+  const baselineIdsRef = useRef<Set<string>>(
+    new Set(loaderData.recipes.map((r) => r.id))
+  );
+  const [pendingEntries, setPendingEntries] = useState<PendingRecipeEntry[]>(
+    []
+  );
+
+  useEffect(() => {
+    latestLoaderDataRef.current = loaderData;
+    for (const recipe of loaderData.recipes) {
+      baselineIdsRef.current.add(recipe.id);
+    }
+  }, [loaderData]);
+
+  useEffect(() => {
+    return subscribeToRecipesCollection((event) => {
+      if (event.type === "initial") {
+        for (const id of event.ids) {
+          baselineIdsRef.current.add(id);
+        }
+        return;
+      }
+
+      const currentData = latestLoaderDataRef.current;
+
+      if (event.removedIds.length > 0) {
+        for (const id of event.removedIds) {
+          baselineIdsRef.current.delete(id);
+        }
+      }
+
+      setPendingEntries((prev) => {
+        const active = prev.filter(
+          (entry) =>
+            entry.forLoaderData === currentData &&
+            !event.removedIds.includes(entry.preview.id)
+        );
+        const byId = new Map(active.map((entry) => [entry.preview.id, entry]));
+
+        for (const modified of event.modified) {
+          const existing = byId.get(modified.id);
+          if (existing) {
+            byId.set(modified.id, {
+              preview: modified,
+              forLoaderData: existing.forLoaderData,
+            });
+          }
+        }
+
+        for (const added of event.added) {
+          if (!baselineIdsRef.current.has(added.id)) {
+            baselineIdsRef.current.add(added.id);
+            byId.set(added.id, {
+              preview: added,
+              forLoaderData: currentData,
+            });
+          }
+        }
+
+        return Array.from(byId.values());
+      });
+    });
+  }, []);
+
+  const loadedIds = new Set(loaderData.recipes.map((r) => r.id));
+  let count = 0;
+  for (const entry of pendingEntries) {
+    if (
+      entry.forLoaderData === loaderData &&
+      !loadedIds.has(entry.preview.id) &&
+      doesPreviewMatchFilters(entry.preview, activeFilters)
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+const ZeroState: FC<{
+  ssr: boolean;
+  returnState?: RecipesReturnState;
+  newRecipesCount: number;
+  isRefreshingNew: boolean;
+  onShowNew: () => void;
+}> = ({ ssr, returnState, newRecipesCount, isRefreshingNew, onShowNew }) => {
   return (
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
+      <NewRecipesBanner
+        count={newRecipesCount}
+        isRefreshing={isRefreshingNew}
+        onShow={onShowNew}
+      />
       <Empty className={cn("border border-dashed bg-card", ssr && "ssr")}>
         <EmptyMedia variant="icon">
           <BookOpen aria-hidden="true" className="h-6 w-6" />
@@ -296,6 +451,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const submitSearch = (nextValue: string, immediate = false) => {
     const trimmed = nextValue.trim();
     const nextParams = new URLSearchParams(activeSearchParams);
+    nextParams.delete("limit");
     if (trimmed) {
       nextParams.set("q", nextValue);
     } else {
@@ -429,6 +585,7 @@ const FilterPanel: FC<{
     tags?: string[];
   }) => {
     const nextParams = new URLSearchParams(activeSearchParams);
+    nextParams.delete("limit");
 
     if (updates.minRating !== undefined) {
       if (updates.minRating > 0) {
@@ -658,6 +815,7 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
   const handleSortChange = (nextSortValue: string) => {
     const nextSort = parseSortParam(nextSortValue);
     const nextParams = new URLSearchParams(activeSearchParams);
+    nextParams.delete("limit");
     if (nextSort !== DEFAULT_SORT) {
       nextParams.set("sort", nextSort);
     } else {
@@ -701,9 +859,10 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
 };
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const { recipes, topTags, ssr } = loaderData;
+  const { recipes, hasMore, topTags, ssr } = loaderData;
   const location = useLocation();
   const navigation = useNavigation();
+  const revalidator = useRevalidator();
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -720,9 +879,47 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const hasFilters =
     Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
 
+  const newRecipesCount = usePendingNewRecipes(loaderData, {
+    searchTerm: activeQueryText || undefined,
+    minRating: activeMinRating > 0 ? activeMinRating : undefined,
+    tags: activeTags.length > 0 ? activeTags : undefined,
+  });
+  const isRefreshingNew = revalidator.state === "loading";
+  const handleShowNew = () => {
+    setSearchDebouncePending(false);
+    void revalidator.revalidate();
+  };
+
   if ((!recipes || recipes.length === 0) && !hasFilters) {
-    return <ZeroState ssr={ssr} returnState={returnState} />;
+    return (
+      <ZeroState
+        ssr={ssr}
+        returnState={returnState}
+        newRecipesCount={newRecipesCount}
+        isRefreshingNew={isRefreshingNew}
+        onShowNew={handleShowNew}
+      />
+    );
   }
+
+  const currentLimit = parseLimitParam(searchParams.get("limit"));
+  const nextLimit = Math.min(
+    MAX_RECIPES_LIMIT,
+    currentLimit + RECIPES_LIMIT_STEP
+  );
+
+  const showMoreParams = new URLSearchParams(searchParams);
+  showMoreParams.set("limit", String(nextLimit));
+  const showMoreHref = `${recipesPath}?${showMoreParams.toString()}`;
+
+  const isLoadingMore =
+    navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath &&
+    parseLimitParam(
+      new URLSearchParams(navigation.location.search).get("limit")
+    ) > currentLimit;
+
+  const countLabel = hasMore ? `${recipes.length}+` : String(recipes.length);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4">
@@ -753,12 +950,18 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           >
             Recipes{" "}
             <span className="font-serif text-sm font-normal tracking-normal text-muted-foreground tabular-nums">
-              ({recipes.length})
+              ({countLabel})
             </span>
           </h1>
 
           <SortControl ssr={ssr} />
         </div>
+
+        <NewRecipesBanner
+          count={newRecipesCount}
+          isRefreshing={isRefreshingNew}
+          onShow={handleShowNew}
+        />
 
         {!recipes || recipes.length === 0 ? (
           <ViewTransition
@@ -808,106 +1011,190 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
             </div>
           </ViewTransition>
         ) : (
-          <ul className="group/item-group flex flex-col gap-3">
-            {recipes.map((recipe: Recipe) => {
-              const totalMinutesLabel = formatTotalMinutes(
-                recipe.prepTime,
-                recipe.cookTime
-              );
-              return (
-                <ViewTransition
-                  key={recipe.id}
-                  default="none"
-                  enter="vt-recipe-card-enter"
-                  exit="vt-recipe-card-exit"
-                  update="vt-recipe-card-move"
-                >
-                  <li>
-                    <Item
+          <>
+            <ul className="group/item-group flex flex-col gap-3">
+              {recipes.map((recipe: Recipe) => {
+                const totalMinutesLabel = formatTotalMinutes(
+                  recipe.prepTime,
+                  recipe.cookTime
+                );
+                return (
+                  <ViewTransition
+                    key={recipe.id}
+                    default="none"
+                    enter="vt-recipe-card-enter"
+                    exit="vt-recipe-card-exit"
+                    update="vt-recipe-card-move"
+                  >
+                    <li>
+                      <Item
+                        asChild
+                        variant="outline"
+                        className={cn(
+                          "rounded-xl bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                          ssr && "ssr"
+                        )}
+                      >
+                        <Link
+                          to={href("/recipes/:recipeId", {
+                            recipeId: recipe.id,
+                          })}
+                          state={returnState}
+                        >
+                          {isSafeImageUrl(recipe.imageUri) && (
+                            <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
+                              <img
+                                src={recipe.imageUri}
+                                alt={recipe.title}
+                                className="size-full object-cover"
+                              />
+                            </ItemMedia>
+                          )}
+                          <ItemContent className="gap-1.5">
+                            <ViewTransition
+                              name={getRecipeTitleTransitionName(recipe.id)}
+                              default="none"
+                              share="vt-recipe-title"
+                            >
+                              <ItemTitle
+                                asChild
+                                className="mb-1 text-xl sm:text-[1.35rem] leading-snug font-normal text-foreground group-hover/item:text-primary transition-colors"
+                              >
+                                <h2>{recipe.title}</h2>
+                              </ItemTitle>
+                            </ViewTransition>
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                              {recipe.averageRating > 0 ? (
+                                <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                                  <Star
+                                    aria-hidden="true"
+                                    className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
+                                  />
+                                  {recipe.averageRating.toFixed(1)}
+                                </span>
+                              ) : (
+                                <span>New</span>
+                              )}
+                              {recipe.likes > 0 && (
+                                <span>
+                                  • {recipe.likes}{" "}
+                                  {recipe.likes === 1 ? "like" : "likes"}
+                                </span>
+                              )}
+                              {totalMinutesLabel && (
+                                <span>• {totalMinutesLabel}</span>
+                              )}
+                            </div>
+                            {recipe.tags?.length > 0 && (
+                              <ul
+                                aria-label="Tags"
+                                className="flex flex-wrap gap-1.5 pt-0.5"
+                              >
+                                {recipe.tags.map((tag) => (
+                                  <li
+                                    key={tag}
+                                    className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
+                                  >
+                                    {tag}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </ItemContent>
+                          <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
+                            <ChevronRight
+                              aria-hidden="true"
+                              className="w-5 h-5"
+                            />
+                          </ItemActions>
+                        </Link>
+                      </Item>
+                    </li>
+                  </ViewTransition>
+                );
+              })}
+            </ul>
+
+            {(hasMore ||
+              recipes.length > DEFAULT_RECIPES_LIMIT ||
+              searchParams.has("limit")) && (
+              <div className="mt-7 mb-2 flex flex-col items-center gap-3 text-center">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
+                  <span aria-hidden="true" className="h-px w-10 bg-border" />
+                  <span>
+                    {hasMore
+                      ? `Showing ${recipes.length} recipes`
+                      : `All ${recipes.length} recipes shown`}
+                  </span>
+                  <span aria-hidden="true" className="h-px w-10 bg-border" />
+                </div>
+
+                {hasMore && currentLimit < MAX_RECIPES_LIMIT ? (
+                  isLoadingMore ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled
+                      className={cn(
+                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 text-base shadow-xs disabled:opacity-100",
+                        ssr && "ssr"
+                      )}
+                    >
+                      <Spinner className="size-4" />
+                      <span>Loading recipes...</span>
+                    </Button>
+                  ) : (
+                    <Button
                       asChild
                       variant="outline"
                       className={cn(
-                        "rounded-xl bg-card px-5 py-3.5 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all",
+                        "h-10 w-full sm:w-auto rounded-xl bg-card px-6 text-base shadow-xs hover:border-primary/40 hover:bg-accent/50",
                         ssr && "ssr"
                       )}
                     >
                       <Link
-                        to={href("/recipes/:recipeId", { recipeId: recipe.id })}
-                        state={returnState}
+                        to={showMoreHref}
+                        replace
+                        preventScrollReset
+                        onClick={() => setSearchDebouncePending(false)}
                       >
-                        {isSafeImageUrl(recipe.imageUri) && (
-                          <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
-                            <img
-                              src={recipe.imageUri}
-                              alt={recipe.title}
-                              className="size-full object-cover"
-                            />
-                          </ItemMedia>
-                        )}
-                        <ItemContent className="gap-1.5">
-                          <ViewTransition
-                            name={getRecipeTitleTransitionName(recipe.id)}
-                            default="none"
-                            share="vt-recipe-title"
-                          >
-                            <ItemTitle
-                              asChild
-                              className="mb-1 text-xl sm:text-[1.35rem] leading-snug font-normal text-foreground group-hover/item:text-primary transition-colors"
-                            >
-                              <h2>{recipe.title}</h2>
-                            </ItemTitle>
-                          </ViewTransition>
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-                            {recipe.averageRating > 0 ? (
-                              <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                                <Star
-                                  aria-hidden="true"
-                                  className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
-                                />
-                                {recipe.averageRating.toFixed(1)}
-                              </span>
-                            ) : (
-                              <span>New</span>
-                            )}
-                            {recipe.likes > 0 && (
-                              <span>
-                                • {recipe.likes}{" "}
-                                {recipe.likes === 1 ? "like" : "likes"}
-                              </span>
-                            )}
-                            {totalMinutesLabel && (
-                              <span>• {totalMinutesLabel}</span>
-                            )}
-                          </div>
-                          {recipe.tags?.length > 0 && (
-                            <ul
-                              aria-label="Tags"
-                              className="flex flex-wrap gap-1.5 pt-0.5"
-                            >
-                              {recipe.tags.map((tag) => (
-                                <li
-                                  key={tag}
-                                  className="px-2 py-0.5 text-xs font-medium rounded-md bg-muted text-muted-foreground"
-                                >
-                                  {tag}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </ItemContent>
-                        <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
-                          <ChevronRight
-                            aria-hidden="true"
-                            className="w-5 h-5"
-                          />
-                        </ItemActions>
+                        Show more recipes
                       </Link>
-                    </Item>
-                  </li>
-                </ViewTransition>
-              );
-            })}
-          </ul>
+                    </Button>
+                  )
+                ) : hasMore ? (
+                  <p className="text-xs text-muted-foreground">
+                    Showing the first {MAX_RECIPES_LIMIT} recipes.{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById("recipe-search");
+                        el?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                        el?.focus();
+                      }}
+                      className="font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+                    >
+                      Search or filter
+                    </button>{" "}
+                    to narrow down.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Back to top ↑
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>

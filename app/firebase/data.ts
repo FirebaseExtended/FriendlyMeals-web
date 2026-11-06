@@ -5,8 +5,10 @@ import {
   doc,
   getDoc,
   getFirestore,
+  onSnapshot,
   serverTimestamp,
   setDoc,
+  type Unsubscribe,
 } from "firebase/firestore";
 import {
   average,
@@ -65,12 +67,38 @@ export type NewRecipeInput = Omit<
 
 export type RecipeSort = "newest" | "title" | "rating" | "likes";
 
+export const DEFAULT_RECIPES_LIMIT = 20;
+export const RECIPES_LIMIT_STEP = 20;
+export const MAX_RECIPES_LIMIT = 100;
+
 export interface RecipeFilters {
   searchTerm?: string;
   minRating?: number;
   tags?: string[];
   sort?: RecipeSort;
+  limit?: number;
 }
+
+export interface RecipesQueryResult {
+  recipes: Recipe[];
+  hasMore: boolean;
+}
+
+export interface LiveRecipePreview {
+  id: string;
+  title: string;
+  ingredients: string[];
+  tags: string[];
+}
+
+export type RecipesCollectionEvent =
+  | { type: "initial"; ids: string[] }
+  | {
+      type: "changes";
+      added: LiveRecipePreview[];
+      modified: LiveRecipePreview[];
+      removedIds: string[];
+    };
 
 // Firestore Enterprise requires a named database ID (here "friendlymeals", matching firebase.json)
 export const db = getFirestore(firebaseApp, "friendlymeals");
@@ -205,12 +233,113 @@ export async function isRecipeLikedByUser(
   return snap.exists();
 }
 
+function toLiveRecipePreview(
+  id: string,
+  raw: Record<string, unknown>
+): LiveRecipePreview {
+  return {
+    id,
+    title: typeof raw.title === "string" ? raw.title : "",
+    ingredients: Array.isArray(raw.ingredients)
+      ? raw.ingredients.filter(
+          (item): item is string => typeof item === "string"
+        )
+      : [],
+    tags: Array.isArray(raw.tags)
+      ? raw.tags.filter((item): item is string => typeof item === "string")
+      : [],
+  };
+}
+
+export function doesPreviewMatchFilters(
+  preview: LiveRecipePreview,
+  filters: Pick<RecipeFilters, "searchTerm" | "tags" | "minRating">
+): boolean {
+  if (filters.minRating && filters.minRating > 0) {
+    // Newly published recipes start with 0 ratings until reviewed
+    return false;
+  }
+
+  if (filters.tags && filters.tags.length > 0) {
+    const hasMatchingTag = preview.tags.some((tag) =>
+      filters.tags?.includes(tag)
+    );
+    if (!hasMatchingTag) {
+      return false;
+    }
+  }
+
+  const trimmedSearch = filters.searchTerm?.trim().toLowerCase();
+  if (trimmedSearch) {
+    const inTitle = preview.title.toLowerCase().includes(trimmedSearch);
+    const inIngredients = preview.ingredients
+      .join(" ")
+      .toLowerCase()
+      .includes(trimmedSearch);
+    const inTags = preview.tags.join(" ").toLowerCase().includes(trimmedSearch);
+    if (!inTitle && !inIngredients && !inTags) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function subscribeToRecipesCollection(
+  onUpdate: (event: RecipesCollectionEvent) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  let isInitial = true;
+  return onSnapshot(
+    collection(db, "recipes"),
+    (snapshot) => {
+      if (isInitial) {
+        isInitial = false;
+        onUpdate({
+          type: "initial",
+          ids: snapshot.docs.map((d) => d.id),
+        });
+        return;
+      }
+
+      const added: LiveRecipePreview[] = [];
+      const modified: LiveRecipePreview[] = [];
+      const removedIds: string[] = [];
+
+      for (const change of snapshot.docChanges()) {
+        if (change.type === "removed") {
+          removedIds.push(change.doc.id);
+        } else if (change.type === "added") {
+          added.push(toLiveRecipePreview(change.doc.id, change.doc.data()));
+        } else if (change.type === "modified") {
+          modified.push(toLiveRecipePreview(change.doc.id, change.doc.data()));
+        }
+      }
+
+      if (added.length > 0 || modified.length > 0 || removedIds.length > 0) {
+        onUpdate({ type: "changes", added, modified, removedIds });
+      }
+    },
+    (error) => {
+      onError?.(error);
+    }
+  );
+}
+
 /**
  * Workshop pipeline query: loads public recipes with dynamically aggregated
  * review averages and like counts, then applies URL-driven filters and sorting.
+ * Fetches `limit + 1` rows to detect `hasMore` without a second count pipeline.
  * Works identically in Node SSR loaders and browser clientLoaders.
  */
-export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
+export async function queryRecipes(
+  filters: RecipeFilters
+): Promise<RecipesQueryResult> {
+  const effectiveLimit = Math.min(
+    MAX_RECIPES_LIMIT,
+    Math.max(1, Math.floor(filters.limit ?? DEFAULT_RECIPES_LIMIT))
+  );
+
   let pipeline = db
     .pipeline()
     .collection("recipes")
@@ -257,35 +386,46 @@ export async function queryRecipes(filters: RecipeFilters): Promise<Recipe[]> {
 
   switch (filters.sort) {
     case "title":
-      pipeline = pipeline.sort(field("title").ascending());
+      pipeline = pipeline.sort(
+        field("title").ascending(),
+        field("__name__").ascending()
+      );
       break;
     case "rating":
       pipeline = pipeline.sort(
         field("averageRating").descending(),
-        field("title").ascending()
+        field("title").ascending(),
+        field("__name__").ascending()
       );
       break;
     case "likes":
       pipeline = pipeline.sort(
         field("likes").descending(),
-        field("title").ascending()
+        field("title").ascending(),
+        field("__name__").ascending()
       );
       break;
     case "newest":
     default:
       pipeline = pipeline.sort(
         field("createdAt").coalesce(field("__create_time__")).descending(),
-        field("title").ascending()
+        field("title").ascending(),
+        field("__name__").ascending()
       );
       break;
   }
 
-  pipeline = pipeline.limit(50);
+  pipeline = pipeline.limit(effectiveLimit + 1);
 
   const { results } = await execute(pipeline);
-  return results.flatMap((result) =>
+  const rows = results.flatMap((result) =>
     result.id ? [toPlainRecipe(result.id, result.data())] : []
   );
+  const hasMore = rows.length > effectiveLimit;
+  return {
+    recipes: hasMore ? rows.slice(0, effectiveLimit) : rows,
+    hasMore,
+  };
 }
 
 export function formatRecipeMarkdown(recipe: Recipe): string {
