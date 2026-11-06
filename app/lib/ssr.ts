@@ -17,3 +17,15 @@ export function useWasServerRendered(): boolean {
   const [wasServerRendered] = useState(isServerOrHydrating);
   return wasServerRendered;
 }
+
+/**
+ * Returns `true` when `?debugSSR` is present in `searchParams` (unless
+ * explicitly disabled with `debugSSR=false` or `debugSSR=0`).
+ */
+export function isDebugSsrEnabled(searchParams: URLSearchParams): boolean {
+  if (!searchParams.has("debugSSR")) {
+    return false;
+  }
+  const raw = searchParams.get("debugSSR")?.trim().toLowerCase();
+  return raw !== "false" && raw !== "0";
+}

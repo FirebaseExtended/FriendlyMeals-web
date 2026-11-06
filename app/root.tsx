@@ -7,10 +7,11 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useSearchParams,
 } from "react-router";
 import type { Route } from "./+types/root";
 import { Button } from "@/components/ui/button";
-import { useWasServerRendered } from "@/lib/ssr";
+import { isDebugSsrEnabled, useWasServerRendered } from "@/lib/ssr";
 import { cn } from "@/lib/utils";
 import "./index.css";
 
@@ -28,6 +29,9 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const [searchParams] = useSearchParams();
+  const debugSsr = isDebugSsrEnabled(searchParams);
+
   return (
     <html lang="en">
       <head>
@@ -37,7 +41,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className={debugSsr ? "debug-ssr" : undefined}>
         {children}
         <ScrollRestoration />
         <Scripts />

@@ -5,10 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Noto Serif", ui-serif, Georgia, Cambria, "Times New Roman",
-    Times, serif;
-  --font-serif: "Noto Serif", ui-serif, Georgia, Cambria, "Times New Roman",
-    Times, serif;
+  --font-sans:
+    "Noto Serif", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-serif:
+    "Noto Serif", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-display: "Londrina Shadow", sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -261,12 +261,13 @@
   }
 }
 
-/* Visual indicator for server-rendered (SSR) components */
-.ssr {
+/* Visual indicator for server-rendered (SSR) components (?debugSSR) */
+.debug-ssr .ssr {
   outline: 2px solid var(--color-blue-500, #3b82f6);
   outline-offset: -2px;
 }
 
-.dark .ssr {
+.dark .debug-ssr .ssr,
+.dark.debug-ssr .ssr {
   outline-color: var(--color-blue-400, #60a5fa);
 }

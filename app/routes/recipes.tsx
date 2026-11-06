@@ -314,6 +314,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const minRatingParam = activeSearchParams.get("minRating");
   const tagsParam = activeSearchParams.get("tags");
   const sortParam = parseSortParam(activeSearchParams.get("sort"));
+  const debugSsrParam = activeSearchParams.get("debugSSR");
 
   return (
     <Form
@@ -332,6 +333,9 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
       {tagsParam && <input type="hidden" name="tags" value={tagsParam} />}
       {sortParam !== DEFAULT_SORT && (
         <input type="hidden" name="sort" value={sortParam} />
+      )}
+      {debugSsrParam !== null && (
+        <input type="hidden" name="debugSSR" value={debugSsrParam} />
       )}
 
       {isSearching ? (
@@ -443,6 +447,7 @@ const FilterPanel: FC<{
   };
 
   const hasPanelFilters = minRating > 0 || selectedTags.length > 0;
+  const debugSsrParam = activeSearchParams.get("debugSSR");
 
   const resetParams = new URLSearchParams();
   if (queryText) {
@@ -450,6 +455,9 @@ const FilterPanel: FC<{
   }
   if (sortBy !== DEFAULT_SORT) {
     resetParams.set("sort", sortBy);
+  }
+  if (debugSsrParam !== null) {
+    resetParams.set("debugSSR", debugSsrParam);
   }
   const resetQs = resetParams.toString();
   const resetHref = resetQs ? `${recipesPath}?${resetQs}` : recipesPath;
@@ -519,6 +527,9 @@ const FilterPanel: FC<{
         )}
         {selectedTags.length > 0 && (
           <input type="hidden" name="tags" value={selectedTags.join(",")} />
+        )}
+        {debugSsrParam !== null && (
+          <input type="hidden" name="debugSSR" value={debugSsrParam} />
         )}
 
         <FieldGroup className="gap-5">
