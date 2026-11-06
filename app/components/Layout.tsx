@@ -4,12 +4,15 @@ import {
   isRouteErrorResponse,
   Link,
   Outlet,
+  useLocation,
   useMatch,
+  useNavigation,
 } from "react-router";
 import { Flame, Sparkles } from "lucide-react";
 import type { Route } from "./+types/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/firebase/auth";
+import { buildRecipesReturnState } from "@/lib/navigation";
 import { useWasServerRendered } from "@/lib/ssr";
 import {
   cn,
@@ -23,10 +26,24 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
 }) => {
   const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
+  const location = useLocation();
+  const navigation = useNavigation();
+  const recipesPath = href("/recipes");
+  const onRecipes = Boolean(useMatch(recipesPath));
   const onGenerate = Boolean(useMatch(href("/generate")));
   const onRecipeDetail = Boolean(useMatch("/recipes/:recipeId"));
   const onLogin = Boolean(useMatch(href("/login")));
   const showHeader = forceHeader || (!onGenerate && !onRecipeDetail);
+
+  const currentRecipesSearch =
+    onRecipes &&
+    navigation.state !== "idle" &&
+    navigation.location?.pathname === recipesPath
+      ? navigation.location.search
+      : location.search;
+  const generateReturnState = onRecipes
+    ? buildRecipesReturnState(currentRecipesSearch)
+    : undefined;
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -59,13 +76,18 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
                 share="vt-generate-cta"
               >
                 {!authReady ? (
-                  <Button type="button" size="sm" disabled className="w-28 gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled
+                    className="w-28 gap-1.5"
+                  >
                     <Sparkles aria-hidden="true" className="size-3.5" />
                     <span>Generate</span>
                   </Button>
                 ) : (
                   <Button asChild size="sm" className="w-28 gap-1.5">
-                    <Link to={href("/generate")}>
+                    <Link to={href("/generate")} state={generateReturnState}>
                       <Sparkles aria-hidden="true" className="size-3.5" />
                       <span>Generate</span>
                     </Link>
@@ -93,7 +115,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let details = "An unexpected error occurred while loading this page.";
 
   if (isRouteErrorResponse(error)) {
-    heading = error.status === 404 ? "404 - Not Found" : `Error ${error.status}`;
+    heading =
+      error.status === 404 ? "404 - Not Found" : `Error ${error.status}`;
     details =
       error.status === 404
         ? "The requested recipe or page could not be found."

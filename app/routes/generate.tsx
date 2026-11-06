@@ -15,6 +15,7 @@ import {
 } from "@/firebase/data";
 import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
+import { useBackToRecipesHref } from "@/lib/navigation";
 import { useWasServerRendered } from "@/lib/ssr";
 import { cn, NAV_RECIPES_TRANSITION_NAME } from "@/lib/utils";
 
@@ -102,6 +103,7 @@ function RecipeSkeleton() {
 export default function GeneratePage({ loaderData }: Route.ComponentProps) {
   const isSsr = useWasServerRendered();
   const { user, authReady } = useAuthUser();
+  const { backHref } = useBackToRecipesHref();
   const [searchParams] = useSearchParams();
   const prefillIngredients = searchParams.get("ingredients")?.trim() ?? "";
 
@@ -230,7 +232,7 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
           share="vt-nav-back"
         >
           <Link
-            to={href("/recipes")}
+            to={backHref}
             className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft aria-hidden="true" className="w-4 h-4" />
@@ -289,7 +291,10 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
         >
           <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
             <div className="flex items-center gap-2 min-w-0 text-sm">
-              <Sparkles aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <Sparkles
+                aria-hidden="true"
+                className="w-4 h-4 text-primary shrink-0"
+              />
               <span className="font-semibold text-foreground shrink-0">
                 {isGenerating ? "Regenerating draft..." : "Draft ready"}
               </span>
@@ -341,7 +346,10 @@ export default function GeneratePage({ loaderData }: Route.ComponentProps) {
                 onClick={handlePublish}
                 disabled={isBusy}
                 size="sm"
-                className={cn("gap-1.5", isPublishing && "disabled:opacity-100")}
+                className={cn(
+                  "gap-1.5",
+                  isPublishing && "disabled:opacity-100"
+                )}
               >
                 {isPublishing ? (
                   <>

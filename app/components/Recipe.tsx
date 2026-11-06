@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/firebase/data";
 import { useAuthUser } from "@/firebase/auth";
+import { useBackToRecipesHref } from "@/lib/navigation";
 import {
   cn,
   getRecipeTitleTransitionName,
@@ -40,6 +41,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const navigate = useNavigate();
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
   const { user } = useAuthUser();
+  const { backHref, recipesSearch } = useBackToRecipesHref();
   const [hoveredStar, setHoveredStar] = useState(0);
 
   const pendingIntent = fetcher.formData?.get("intent");
@@ -105,7 +107,12 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const handleDelete = () => {
     if (!user || user.uid !== recipe.authorId) return;
     if (confirm("Are you sure you want to delete this recipe?")) {
-      void fetcher.submit({ intent: "delete" }, { method: "post" });
+      void fetcher.submit(
+        recipesSearch
+          ? { intent: "delete", recipesSearch }
+          : { intent: "delete" },
+        { method: "post" }
+      );
     }
   };
 
@@ -113,9 +120,8 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const activeRating = hoveredStar || displayRating;
   const steps = Array.isArray(recipe.instructions) ? recipe.instructions : [];
   const servingsDisplay =
-    (recipe.servings ?? "")
-      .replace(/\s*servings?\b/i, "")
-      .trim() || recipe.servings;
+    (recipe.servings ?? "").replace(/\s*servings?\b/i, "").trim() ||
+    recipe.servings;
 
   const TitleTag = readonly ? "h2" : "h1";
   const SectionHeadingTag = readonly ? "h3" : "h2";
@@ -137,7 +143,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
             share="vt-nav-back"
           >
             <Link
-              to={href("/recipes")}
+              to={backHref}
               className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft aria-hidden="true" className="w-4 h-4" />
@@ -264,21 +270,30 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
 
           <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-border/60 py-3.5 text-sm">
             <div className="inline-flex items-center gap-2">
-              <Clock aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <Clock
+                aria-hidden="true"
+                className="w-4 h-4 text-primary shrink-0"
+              />
               <dt className="text-muted-foreground">Prep</dt>
               <dd className="font-semibold text-foreground">
                 {recipe.prepTime}
               </dd>
             </div>
             <div className="inline-flex items-center gap-2">
-              <CookingPot aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <CookingPot
+                aria-hidden="true"
+                className="w-4 h-4 text-primary shrink-0"
+              />
               <dt className="text-muted-foreground">Cook</dt>
               <dd className="font-semibold text-foreground">
                 {recipe.cookTime}
               </dd>
             </div>
             <div className="inline-flex items-center gap-2">
-              <Users aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />
+              <Users
+                aria-hidden="true"
+                className="w-4 h-4 text-primary shrink-0"
+              />
               <dt className="text-muted-foreground">Serves</dt>
               <dd className="font-semibold text-foreground">
                 {servingsDisplay}

@@ -12,6 +12,7 @@ import {
 } from "@/firebase/data";
 import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
+import { getRecipesHrefWithSearch } from "@/lib/navigation";
 
 const PUBLIC_RECIPE_CACHE_CONTROL =
   "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
@@ -78,7 +79,10 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
 }
 
 // Client mutations run with browser Firebase Auth credentials and automatically revalidate clientLoader
-export async function clientAction({ request, params }: Route.ClientActionArgs) {
+export async function clientAction({
+  request,
+  params,
+}: Route.ClientActionArgs) {
   const recipeId = params.recipeId;
   if (!recipeId) {
     throw data("No recipe ID provided", { status: 400 });
@@ -110,7 +114,10 @@ export async function clientAction({ request, params }: Route.ClientActionArgs) 
     if (intent === "rate") {
       const rating = Number(formData.get("rating"));
       if (Number.isNaN(rating) || rating < 1 || rating > 5) {
-        return data({ ok: false, error: "Rating must be between 1 and 5." }, { status: 400 });
+        return data(
+          { ok: false, error: "Rating must be between 1 and 5." },
+          { status: 400 }
+        );
       }
       await addReview(recipeId, user.uid, rating);
       return { ok: true };
@@ -118,7 +125,7 @@ export async function clientAction({ request, params }: Route.ClientActionArgs) 
 
     if (intent === "delete") {
       await deleteRecipe(recipeId);
-      return redirect(href("/recipes"));
+      return redirect(getRecipesHrefWithSearch(formData.get("recipesSearch")));
     }
 
     return data({ ok: false, error: "Unsupported action." }, { status: 400 });

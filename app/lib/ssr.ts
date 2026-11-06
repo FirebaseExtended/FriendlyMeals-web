@@ -5,15 +5,23 @@ const getClientSnapshot = () => false;
 const getServerSnapshot = () => true;
 
 /**
- * Returns `true` if this component instance was rendered on the server (and
- * hydrated from SSR HTML), or `false` if it mounted purely in the browser.
+ * Returns `true` on the server and during `hydrateRoot`'s initial hydration
+ * pass, and `false` once hydrated (or immediately on client-only renders).
  */
-export function useWasServerRendered(): boolean {
-  const isServerOrHydrating = useSyncExternalStore(
+export function useIsServerOrHydrating(): boolean {
+  return useSyncExternalStore(
     emptySubscribe,
     getClientSnapshot,
     getServerSnapshot
   );
+}
+
+/**
+ * Returns `true` if this component instance was rendered on the server (and
+ * hydrated from SSR HTML), or `false` if it mounted purely in the browser.
+ */
+export function useWasServerRendered(): boolean {
+  const isServerOrHydrating = useIsServerOrHydrating();
   const [wasServerRendered] = useState(isServerOrHydrating);
   return wasServerRendered;
 }

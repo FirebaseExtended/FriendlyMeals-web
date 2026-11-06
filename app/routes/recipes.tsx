@@ -48,6 +48,10 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
+import {
+  buildRecipesReturnState,
+  type RecipesReturnState,
+} from "@/lib/navigation";
 import { cn, getRecipeTitleTransitionName } from "@/lib/utils";
 
 const PUBLIC_RECIPES_CACHE_CONTROL =
@@ -208,7 +212,10 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   return { ...payload, ssr: false };
 }
 
-const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
+const ZeroState: FC<{ ssr: boolean; returnState?: RecipesReturnState }> = ({
+  ssr,
+  returnState,
+}) => {
   return (
     <div className="flex h-full flex-1 flex-col gap-4 p-4 md:gap-8 md:p-10">
       <Empty className={cn("border border-dashed bg-card", ssr && "ssr")}>
@@ -224,7 +231,9 @@ const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
         </EmptyHeader>
         <EmptyContent>
           <Button asChild>
-            <Link to={href("/generate")}>Generate Recipe</Link>
+            <Link to={href("/generate")} state={returnState}>
+              Generate Recipe
+            </Link>
           </Button>
         </EmptyContent>
       </Empty>
@@ -693,8 +702,17 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const { recipes, topTags, ssr } = loaderData;
+  const location = useLocation();
+  const navigation = useNavigation();
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
+
+  const recipesPath = href("/recipes");
+  const currentCatalogSearch =
+    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
+      ? navigation.location.search
+      : location.search;
+  const returnState = buildRecipesReturnState(currentCatalogSearch);
 
   const activeQueryText = searchParams.get("q")?.trim() || "";
   const activeMinRating = Number(searchParams.get("minRating")) || 0;
@@ -703,7 +721,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
 
   if ((!recipes || recipes.length === 0) && !hasFilters) {
-    return <ZeroState ssr={ssr} />;
+    return <ZeroState ssr={ssr} returnState={returnState} />;
   }
 
   return (
@@ -779,6 +797,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                   <Button asChild size="sm" className="gap-1.5">
                     <Link
                       to={`${href("/generate")}?ingredients=${encodeURIComponent(activeQueryText)}`}
+                      state={returnState}
                     >
                       <Sparkles aria-hidden="true" className="size-3.5" />
                       <span>Generate a "{activeQueryText}" recipe</span>
@@ -814,6 +833,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                     >
                       <Link
                         to={href("/recipes/:recipeId", { recipeId: recipe.id })}
+                        state={returnState}
                       >
                         {isSafeImageUrl(recipe.imageUri) && (
                           <ItemMedia className="size-16 rounded-lg overflow-hidden border bg-muted shrink-0">
