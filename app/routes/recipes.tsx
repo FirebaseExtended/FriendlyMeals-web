@@ -1,15 +1,10 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  ViewTransition,
-  type FC,
-} from "react";
+import { useEffect, useRef, useState, ViewTransition, type FC } from "react";
 import {
   data,
   Form,
   href,
   Link,
+  useLocation,
   useNavigation,
   useSearchParams,
   useSubmit,
@@ -169,8 +164,46 @@ export async function loader({ request }: Route.LoaderArgs) {
   );
 }
 
+const SEARCH_DEBOUNCE_MS = 300;
+let debounceCatalogUntil = 0;
+
+function setSearchDebouncePending(pending: boolean) {
+  debounceCatalogUntil = pending ? Date.now() + 100 : 0;
+}
+
+function consumeSearchDebounce(): boolean {
+  const shouldDebounce = Date.now() < debounceCatalogUntil;
+  debounceCatalogUntil = 0;
+  return shouldDebounce;
+}
+
+function waitWithSignal(ms: number, signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(true);
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 // Subsequent navigations and filter submissions run directly in the browser against Firestore
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  if (consumeSearchDebounce()) {
+    const ready = await waitWithSignal(SEARCH_DEBOUNCE_MS, request.signal);
+    if (!ready) {
+      // Aborted by a newer keystroke or navigation; router discards this result via request.signal.aborted
+      return { recipes: [], topTags: [], ssr: false };
+    }
+  }
+
   const payload = await loadRecipesCatalog(request);
   return { ...payload, ssr: false };
 }
@@ -185,7 +218,8 @@ const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
         <EmptyHeader>
           <EmptyTitle>No recipes yet</EmptyTitle>
           <EmptyDescription>
-            Generate a recipe with Gemini to start building the community cookbook.
+            Generate a recipe with Gemini to start building the community
+            cookbook.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -198,77 +232,88 @@ const ZeroState: FC<{ ssr: boolean }> = ({ ssr }) => {
   );
 };
 
-const SEARCH_DEBOUNCE_MS = 300;
+interface SearchLocationState {
+  isSearchSubmission?: boolean;
+}
 
 const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const submit = useSubmit();
   const navigation = useNavigation();
   const recipesPath = href("/recipes");
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   const urlQuery = searchParams.get("q") || "";
-  const [value, setValue] = useState(urlQuery);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSubmittedRef = useRef(urlQuery);
+  const [initialQuery] = useState(urlQuery);
+  const [hasText, setHasText] = useState(Boolean(urlQuery));
 
-  // Sync input if `q` changes externally (Reset, Clear all, or browser Back/Forward)
+  // Native "popstate" fires exclusively on browser Back/Forward (never on pushState/replaceState)
   useEffect(() => {
-    if (
-      urlQuery !== lastSubmittedRef.current &&
-      debounceTimerRef.current === null
-    ) {
-      setValue(urlQuery);
-      lastSubmittedRef.current = urlQuery;
-    }
-  }, [urlQuery]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+    const handlePopState = () => {
+      const poppedQuery =
+        new URLSearchParams(window.location.search).get("q") || "";
+      if (inputRef.current) {
+        inputRef.current.value = poppedQuery;
       }
+      setHasText(Boolean(poppedQuery));
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
+  // Sync uncontrolled input on external non-search navigations (e.g. header brand reset link)
+  useEffect(() => {
+    const state = location.state as SearchLocationState | null;
+    if (
+      !state?.isSearchSubmission &&
+      location.key &&
+      inputRef.current &&
+      document.activeElement !== inputRef.current
+    ) {
+      inputRef.current.value = urlQuery;
+      setHasText(Boolean(urlQuery));
+    }
+  }, [location, urlQuery]);
+
+  const activeSearchParams =
+    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
+      ? new URLSearchParams(navigation.location.search)
+      : searchParams;
+
   const submitSearch = (nextValue: string, immediate = false) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-
-    const run = () => {
-      debounceTimerRef.current = null;
-      const trimmed = nextValue.trim();
-      lastSubmittedRef.current = trimmed ? nextValue : "";
-      const nextParams = new URLSearchParams(searchParams);
-      if (trimmed) {
-        nextParams.set("q", nextValue);
-      } else {
-        nextParams.delete("q");
-      }
-      const hadQueryBefore = Boolean(searchParams.get("q"));
-      void submit(nextParams, {
-        method: "get",
-        action: recipesPath,
-        replace: hadQueryBefore,
-      });
-    };
-
-    if (immediate) {
-      run();
+    const trimmed = nextValue.trim();
+    const nextParams = new URLSearchParams(activeSearchParams);
+    if (trimmed) {
+      nextParams.set("q", nextValue);
     } else {
-      debounceTimerRef.current = setTimeout(run, SEARCH_DEBOUNCE_MS);
+      nextParams.delete("q");
     }
+
+    const hadCommittedQuery = Boolean(searchParams.get("q"));
+    setSearchDebouncePending(!immediate);
+
+    void submit(nextParams, {
+      method: "get",
+      action: recipesPath,
+      replace: hadCommittedQuery || !trimmed,
+      preventScrollReset: true,
+      state: { isSearchSubmission: true } satisfies SearchLocationState,
+    });
   };
 
   const isSearching =
     navigation.state !== "idle" &&
     navigation.location?.pathname === recipesPath &&
-    new URLSearchParams(navigation.location.search).get("q") !== urlQuery;
+    (new URLSearchParams(navigation.location.search).get("q") || "") !==
+      urlQuery;
 
-  const minRatingParam = searchParams.get("minRating");
-  const tagsParam = searchParams.get("tags");
-  const sortParam = parseSortParam(searchParams.get("sort"));
+  const minRatingParam = activeSearchParams.get("minRating");
+  const tagsParam = activeSearchParams.get("tags");
+  const sortParam = parseSortParam(activeSearchParams.get("sort"));
 
   return (
     <Form
@@ -277,7 +322,7 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
-        submitSearch(value, true);
+        submitSearch(inputRef.current?.value ?? "", true);
       }}
       className="relative"
     >
@@ -289,20 +334,25 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
         <input type="hidden" name="sort" value={sortParam} />
       )}
 
-      <Search
-        aria-hidden="true"
-        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-      />
+      {isSearching ? (
+        <Spinner className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      ) : (
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        />
+      )}
       <Input
+        ref={inputRef}
         id="recipe-search"
         name="q"
         type="search"
         aria-label="Search recipes"
         placeholder="Search recipes by title, ingredient, or tag..."
-        value={value}
+        defaultValue={initialQuery}
         onChange={(e) => {
           const next = e.target.value;
-          setValue(next);
+          setHasText(next.length > 0);
           submitSearch(next);
         }}
         className={cn(
@@ -310,22 +360,22 @@ const SearchBar: FC<{ ssr: boolean }> = ({ ssr }) => {
           ssr && "ssr"
         )}
       />
-      {isSearching ? (
-        <Spinner className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      ) : (
-        value && (
-          <button
-            type="button"
-            onClick={() => {
-              setValue("");
-              submitSearch("", true);
-            }}
-            aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
-          >
-            <X aria-hidden="true" className="h-4 w-4" />
-          </button>
-        )
+      {hasText && (
+        <button
+          type="button"
+          onClick={() => {
+            if (inputRef.current) {
+              inputRef.current.value = "";
+              inputRef.current.focus();
+            }
+            setHasText(false);
+            submitSearch("", true);
+          }}
+          aria-label="Clear search"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <X aria-hidden="true" className="h-4 w-4" />
+        </button>
       )}
     </Form>
   );
@@ -351,8 +401,7 @@ const FilterPanel: FC<{
   const [hoveredStar, setHoveredStar] = useState(0);
 
   const activeSearchParams =
-    navigation.state !== "idle" &&
-    navigation.location?.pathname === recipesPath
+    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
       ? new URLSearchParams(navigation.location.search)
       : searchParams;
 
@@ -384,10 +433,12 @@ const FilterPanel: FC<{
       }
     }
 
+    setSearchDebouncePending(false);
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
       replace: true,
+      preventScrollReset: true,
     });
   };
 
@@ -467,11 +518,7 @@ const FilterPanel: FC<{
           <input type="hidden" name="minRating" value={String(minRating)} />
         )}
         {selectedTags.length > 0 && (
-          <input
-            type="hidden"
-            name="tags"
-            value={selectedTags.join(",")}
-          />
+          <input type="hidden" name="tags" value={selectedTags.join(",")} />
         )}
 
         <FieldGroup className="gap-5">
@@ -582,8 +629,7 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
   const recipesPath = href("/recipes");
 
   const activeSearchParams =
-    navigation.state !== "idle" &&
-    navigation.location?.pathname === recipesPath
+    navigation.state !== "idle" && navigation.location?.pathname === recipesPath
       ? new URLSearchParams(navigation.location.search)
       : searchParams;
 
@@ -597,10 +643,12 @@ const SortControl: FC<{ ssr: boolean }> = ({ ssr }) => {
     } else {
       nextParams.delete("sort");
     }
+    setSearchDebouncePending(false);
     void submit(nextParams, {
       method: "get",
       action: recipesPath,
       replace: true,
+      preventScrollReset: true,
     });
   };
 
@@ -639,8 +687,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
 
   const activeQueryText = searchParams.get("q")?.trim() || "";
   const activeMinRating = Number(searchParams.get("minRating")) || 0;
-  const activeTags =
-    searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const activeTags = searchParams.get("tags")?.split(",").filter(Boolean) || [];
   const hasFilters =
     Boolean(activeQueryText) || activeMinRating > 0 || activeTags.length > 0;
 
@@ -818,7 +865,10 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
                           )}
                         </ItemContent>
                         <ItemActions className="text-muted-foreground group-hover/item:text-foreground group-hover/item:translate-x-0.5 transition-all">
-                          <ChevronRight aria-hidden="true" className="w-5 h-5" />
+                          <ChevronRight
+                            aria-hidden="true"
+                            className="w-5 h-5"
+                          />
                         </ItemActions>
                       </Link>
                     </Item>
