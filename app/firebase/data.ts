@@ -296,15 +296,29 @@ export async function queryRecipes(
     Math.max(1, Math.floor(filters.limit ?? DEFAULT_RECIPES_LIMIT))
   );
 
-  // TODO(Exercise 2): Replace `results` below with a Firestore Enterprise pipeline query:
-  // 1. Build `let pipeline = db.pipeline().collection("recipes")`
-  //    and bind `.define(documentId(field("__name__")).as("parentRecipeId"))`.
-  // 2. Chain `.addFields(...)` to compute `averageRating` (from `subcollection("reviews")`)
-  //    and `likes` (from `db.pipeline().collection("likes")`).
-  // 3. Apply URL filters and sorting: `pipeline = applyRecipeFiltersAndSort(pipeline, filters, effectiveLimit)`.
-  // 4. Execute the pipeline: `const { results } = await execute(pipeline)`.
-  void applyRecipeFiltersAndSort;
-  const results: Awaited<ReturnType<typeof execute>>["results"] = [];
+  let pipeline = db
+    .pipeline()
+    .collection("recipes")
+    .define(documentId(field("__name__")).as("parentRecipeId"))
+    .addFields(
+      subcollection("reviews")
+        .aggregate(average("rating").as("avg"))
+        .toScalarExpression()
+        .coalesce(0)
+        .as("averageRating"),
+      db
+        .pipeline()
+        .collection("likes")
+        .where(field("recipeId").equal(variable("parentRecipeId")))
+        .aggregate(countAll().as("count"))
+        .toScalarExpression()
+        .coalesce(0)
+        .as("likes")
+    );
+
+  pipeline = applyRecipeFiltersAndSort(pipeline, filters, effectiveLimit);
+
+  const { results } = await execute(pipeline);
 
   const rows = results.flatMap((result) =>
     result.id ? [toPlainRecipe(result.id, result.data())] : []
