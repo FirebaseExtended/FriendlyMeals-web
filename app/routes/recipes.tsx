@@ -40,10 +40,17 @@ import {
 } from "@/lib/recipes-catalog";
 import { cn } from "@/lib/utils";
 
-// TODO(Exercise 3): Define `PUBLIC_RECIPES_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"`
-// (omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`)
-// and export `headers({ loaderHeaders, errorHeaders }: Route.HeadersArgs)` returning `{}`
-// when `errorHeaders` is set, or forwarding `loaderHeaders.get("Cache-Control")` otherwise.
+// Omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`
+const PUBLIC_RECIPES_CACHE_CONTROL =
+  "public, max-age=60, stale-while-revalidate=300";
+
+export function headers({ loaderHeaders, errorHeaders }: Route.HeadersArgs) {
+  if (errorHeaders) {
+    return {};
+  }
+  const cacheControl = loaderHeaders.get("Cache-Control");
+  return cacheControl ? { "Cache-Control": cacheControl } : {};
+}
 
 export function meta() {
   return [
@@ -64,17 +71,41 @@ async function loadRecipesCatalog(request: Request, likedByUserId?: string) {
 // Initial HTML request renders on Cloud Run so search engines and agents get full HTML
 export async function loader({ request }: Route.LoaderArgs) {
   const payload = await loadRecipesCatalog(request);
-  // TODO(Exercise 3): Cache public HTML responses with `PUBLIC_RECIPES_CACHE_CONTROL`
-  // ("public, max-age=60, stale-while-revalidate=300").
   return data(payload, {
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
   });
 }
 
-// TODO(Exercise 3): Export `clientLoader({ request, serverLoader }: Route.ClientLoaderArgs)`
-// with `clientLoader.hydrate = true as const;` so initial public loads reuse `serverLoader()`
-// in memory, `?liked=1` resolves via `await getUser()`, and subsequent navigations query
-// Firestore directly in the browser.
+let isInitialRecipesRequest = true;
+
+// Hydrates `?liked=1` from IndexedDB auth and runs subsequent navigations directly in the browser
+export async function clientLoader({
+  request,
+  serverLoader,
+}: Route.ClientLoaderArgs) {
+  const wasInitial = isInitialRecipesRequest;
+  isInitialRecipesRequest = false;
+  const url = new URL(request.url);
+
+  if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
+    const user = await getUser();
+    if (!user) {
+      url.searchParams.delete("liked");
+      url.searchParams.delete("limit");
+      const fallbackQs = url.searchParams.toString();
+      throw redirect(
+        fallbackQs ? `${href("/recipes")}?${fallbackQs}` : href("/recipes")
+      );
+    }
+    return loadRecipesCatalog(request, user.uid);
+  }
+
+  if (wasInitial) {
+    return serverLoader();
+  }
+  return loadRecipesCatalog(request);
+}
+clientLoader.hydrate = true as const;
 
 export async function clientAction({ request }: Route.ClientActionArgs) {
   const user = await getUser();
