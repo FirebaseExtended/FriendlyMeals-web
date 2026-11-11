@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useEffectEvent,
-  useState,
-  ViewTransition,
-  type FC,
-} from "react";
+import { useState, ViewTransition, type FC } from "react";
 import {
   data,
   href,
@@ -12,12 +6,11 @@ import {
   redirect,
   useFetcher,
   useNavigation,
-  useRevalidator,
   useSearchParams,
 } from "react-router";
 import { BookOpen, Database, Heart, Search, Sparkles } from "lucide-react";
 import type { Route } from "./+types/recipes";
-import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
+import { useAuthUser, getUser } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
 import {
   getTop5Tags,
@@ -77,43 +70,25 @@ async function loadRecipesCatalog(request: Request, likedByUserId?: string) {
 
 // Initial HTML request renders on Cloud Run so search engines and agents get full HTML
 export async function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
-  if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
-    // Firebase Auth lives in browser IndexedDB; defer liked-recipes resolution to hydration
-    const topTags = await getTop5Tags();
-    return data(
-      {
-        recipes: [] as Recipe[],
-        hasMore: false,
-        topTags,
-        likedAuthChecked: false,
-        likedResolvedForUid: null as string | null,
-      },
-      {
-        headers: { "Cache-Control": "private, no-store" },
-      }
-    );
-  }
-
   const payload = await loadRecipesCatalog(request);
-  return data(
-    {
-      ...payload,
-      likedAuthChecked: false,
-      likedResolvedForUid: null as string | null,
-    },
-    {
-      headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
-    }
-  );
+  return data(payload, {
+    headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
+  });
 }
 
-// Subsequent navigations and filter submissions run directly in the browser against Firestore
-export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+let isInitialRecipesRequest = true;
+
+// Hydrates `?liked=1` from IndexedDB auth and runs subsequent navigations directly in the browser
+export async function clientLoader({
+  request,
+  serverLoader,
+}: Route.ClientLoaderArgs) {
+  const wasInitial = isInitialRecipesRequest;
+  isInitialRecipesRequest = false;
   const url = new URL(request.url);
 
   if (isLikedFilterEnabled(url.searchParams.get("liked"))) {
-    const user = await waitForAuthReady();
+    const user = await getUser();
     if (!user) {
       url.searchParams.delete("liked");
       url.searchParams.delete("limit");
@@ -122,24 +97,18 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
         fallbackQs ? `${href("/recipes")}?${fallbackQs}` : href("/recipes")
       );
     }
-    const payload = await loadRecipesCatalog(request, user.uid);
-    return {
-      ...payload,
-      likedAuthChecked: true,
-      likedResolvedForUid: user.uid,
-    };
+    return loadRecipesCatalog(request, user.uid);
   }
 
-  const payload = await loadRecipesCatalog(request);
-  return {
-    ...payload,
-    likedAuthChecked: true,
-    likedResolvedForUid: null as string | null,
-  };
+  if (wasInitial) {
+    return serverLoader();
+  }
+  return loadRecipesCatalog(request);
 }
+clientLoader.hydrate = true as const;
 
 export async function clientAction({ request }: Route.ClientActionArgs) {
-  const user = await waitForAuthReady();
+  const user = await getUser();
   if (!user) {
     return redirect(
       `${href("/login")}?redirectTo=${encodeURIComponent(href("/recipes"))}`
@@ -171,7 +140,6 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 }
 
 const ZeroState: FC = () => {
-  const { authReady } = useAuthUser();
   const seedFetcher = useFetcher<typeof clientAction>();
   const isSeeding = seedFetcher.state !== "idle";
   const seedError =
@@ -202,7 +170,7 @@ const ZeroState: FC = () => {
             <Button
               type="button"
               variant="outline"
-              disabled={!authReady || isSeeding}
+              disabled={isSeeding}
               onClick={() => {
                 void seedFetcher.submit({ intent: "seed" }, { method: "post" });
               }}
@@ -236,11 +204,9 @@ const ZeroState: FC = () => {
 };
 
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
-  const { recipes, hasMore, topTags, likedAuthChecked, likedResolvedForUid } =
-    loaderData;
-  const { user, authReady } = useAuthUser();
+  const { recipes, hasMore, topTags } = loaderData;
+  const user = useAuthUser();
   const navigation = useNavigation();
-  const revalidator = useRevalidator();
   const [searchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -255,33 +221,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     Boolean(activeQueryText) ||
     activeMinRating > 0 ||
     activeTags.length > 0;
-
-  const currentUid = user?.uid ?? null;
-  const needsLikedRevalidation =
-    !likedAuthChecked || likedResolvedForUid !== currentUid;
-
-  const triggerRevalidation = useEffectEvent(() => {
-    void revalidator.revalidate();
-  });
-
-  // Hydrate or redirect `?liked=1` via clientLoader once browser Firebase Auth is ready
-  useEffect(() => {
-    if (
-      activeLikedOnly &&
-      authReady &&
-      needsLikedRevalidation &&
-      revalidator.state === "idle" &&
-      navigation.state === "idle"
-    ) {
-      triggerRevalidation();
-    }
-  }, [
-    activeLikedOnly,
-    authReady,
-    needsLikedRevalidation,
-    revalidator.state,
-    navigation.state,
-  ]);
 
   if ((!recipes || recipes.length === 0) && !hasFilters) {
     return <ZeroState />;
@@ -304,16 +243,9 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
       new URLSearchParams(navigation.location.search).get("limit")
     ) > currentLimit;
 
-  const canFilterByLikes = authReady && Boolean(user);
-  const isSignedOut = authReady && !user;
-  const isResolvingLikedCatalog =
-    activeLikedOnly && (!authReady || needsLikedRevalidation);
-
-  const countLabel = isResolvingLikedCatalog
-    ? "…"
-    : hasMore
-      ? `${recipes.length}+`
-      : String(recipes.length);
+  const canFilterByLikes = Boolean(user);
+  const isSignedOut = !user;
+  const countLabel = hasMore ? `${recipes.length}+` : String(recipes.length);
 
   const isEmptyLikedOnly =
     activeLikedOnly &&
@@ -358,14 +290,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           <SortControl />
         </div>
 
-        {isResolvingLikedCatalog ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-md border bg-card px-6 py-12 text-center shadow-xs">
-            <Spinner className="size-5 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Loading your liked recipes...
-            </p>
-          </div>
-        ) : !recipes || recipes.length === 0 ? (
+        {!recipes || recipes.length === 0 ? (
           <ViewTransition
             key="empty-results"
             default="none"

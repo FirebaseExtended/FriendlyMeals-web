@@ -1,7 +1,7 @@
 import { data, href, redirect } from "react-router";
 import type { Route } from "./+types/logout";
 import { Spinner } from "@/components/ui/spinner";
-import { signOutUser, waitForAuthReady } from "@/firebase/auth";
+import { signOutUser, getUser } from "@/firebase/auth";
 
 export function meta() {
   return [{ title: "Signing Out - Friendly Meals" }];
@@ -21,7 +21,7 @@ export async function loader() {
 }
 
 export async function clientLoader() {
-  await waitForAuthReady();
+  await getUser();
   await signOutUser();
   throw redirect(href("/recipes"));
 }

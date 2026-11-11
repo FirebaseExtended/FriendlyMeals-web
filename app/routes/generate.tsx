@@ -19,7 +19,7 @@ import {
   type NewRecipeInput,
   type Recipe,
 } from "@/firebase/data";
-import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
+import { useAuthUser, getUser } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
 import { cn } from "@/lib/utils";
 
@@ -29,8 +29,32 @@ export function headers() {
   return { "Cache-Control": "private, no-store" };
 }
 
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  const user = await getUser();
+  if (!user) {
+    const url = new URL(request.url);
+    const redirectTo = `${url.pathname}${url.search}`;
+    throw redirect(
+      `${href("/login")}?redirectTo=${encodeURIComponent(redirectTo)}`
+    );
+  }
+  return null;
+}
+clientLoader.hydrate = true as const;
+
+export function HydrateFallback() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-4">
+      <div className="flex items-center gap-2 rounded-md px-6 py-4 text-muted-foreground">
+        <Spinner className="h-5 w-5" />
+        <span>Loading generator...</span>
+      </div>
+    </div>
+  );
+}
+
 export async function clientAction({ request }: Route.ClientActionArgs) {
-  const user = await waitForAuthReady();
+  const user = await getUser();
   if (!user) {
     return redirect(
       `${href("/login")}?redirectTo=${encodeURIComponent(href("/generate"))}`
@@ -129,7 +153,7 @@ function RecipeSkeleton() {
 }
 
 export default function GeneratePage() {
-  const { user, authReady } = useAuthUser();
+  const user = useAuthUser();
   const [searchParams] = useSearchParams();
   const prefillIngredients = searchParams.get("ingredients")?.trim() ?? "";
 
@@ -250,7 +274,7 @@ export default function GeneratePage() {
             cuisineType={cuisineType}
             onCuisineTypeChange={setCuisineType}
             isLoading={isGenerating ? "Generating recipe" : false}
-            submitDisabled={!authReady || !user || isPublishing}
+            submitDisabled={!user || isPublishing}
             hasPreview={Boolean(previewRecipe)}
             onCancelEdit={() => setIsInputExpanded(false)}
             handleSubmit={() => void handleGenerateRecipe()}

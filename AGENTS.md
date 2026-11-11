@@ -18,12 +18,12 @@ Before editing Firebase or React Router code, consult the matching skill under `
 ## Architectural Invariants
 
 1. **Selective SSR, "Skip the Server Hop", and Safe CDN Caching**:
-   - Public routes (`/recipes` and `/recipes/:recipeId`) export both `loader` (server-rendered initial HTML + `Cache-Control` response headers) and `clientLoader` (subsequent browser navigations and post-`clientAction` revalidations query Firestore directly without hitting Cloud Run).
+   - Public routes (`/recipes` and `/recipes/:recipeId`) export both `loader` (server-rendered initial HTML + `Cache-Control` response headers) and `clientLoader` (`clientLoader.hydrate = true`, reusing `serverLoader()` on public initial loads while hydrating user-specific state like `?liked=1` and `isLiked`, and querying Firestore directly on subsequent browser navigations).
    - `headers()` on public routes checks `if (errorHeaders) return {};` so 404 and 500 responses are never publicly cached by Cloud CDN.
    - `/recipes/:recipeId.md` (`app/routes/recipe.$recipeId.md.ts`) is a componentless resource route returning raw `text/markdown; charset=utf-8`. Link to it with `<Link reloadDocument>`.
 2. **Client-Side Auth Guards (IndexedDB, Not Cookies)**:
    - Firebase Auth stores tokens in browser IndexedDB, so Node SSR loaders cannot read `auth.currentUser`.
-   - Protected routes (`/generate`) sit behind `app/routes/_protected.tsx`, which SSRs the static UI immediately (with submit disabled until auth resolves), guards SPA navigations via `clientMiddleware`, and silently redirects signed-out initial loads to `/login`.
+   - Protected routes (`/generate`) export `clientLoader` (`clientLoader.hydrate = true`) + `HydrateFallback`, awaiting `getUser()` (`auth.authStateReady()`) and redirecting signed-out requests to `/login`.
    - Mutations on `/recipes/:recipeId` (likes, ratings, deletes) run through `clientAction` + `useFetcher` so browser Auth tokens attach automatically and `clientLoader` revalidates Firestore aggregates.
 3. **Firebase Initialization & Browser-Safe Services**:
    - `app/firebase/firebase-config.ts` uses `firebaseConfig` when pasted (`firebase apps:sdkconfig WEB`), and falls back to zero-argument `initializeApp()` for automatic initialization on Firebase App Hosting.

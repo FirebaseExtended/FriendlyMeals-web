@@ -47,7 +47,7 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
   children,
   forceHeader = false,
 }) => {
-  const { user, authReady } = useAuthUser();
+  const user = useAuthUser();
   const location = useLocation();
   const navigation = useNavigation();
   const matches = useMatches();
@@ -88,10 +88,6 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
 
             {hideHeaderActions ? (
               <div aria-hidden="true" className="h-8 w-28" />
-            ) : !authReady ? (
-              <Button type="button" size="sm" disabled className="w-28">
-                Generate
-              </Button>
             ) : user ? (
               <Button asChild size="sm" className="w-28">
                 <Link to={href("/generate")} prefetch="intent">

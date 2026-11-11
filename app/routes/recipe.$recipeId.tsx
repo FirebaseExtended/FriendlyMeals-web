@@ -1,10 +1,7 @@
-import { useEffect, useEffectEvent } from "react";
 import {
   data,
   href,
   redirect,
-  useNavigation,
-  useRevalidator,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
 import type { Route } from "./+types/recipe.$recipeId";
@@ -17,7 +14,7 @@ import {
   likeRecipe,
   unlikeRecipe,
 } from "@/firebase/data";
-import { useAuthUser, waitForAuthReady } from "@/firebase/auth";
+import { getUser } from "@/firebase/auth";
 import { reportClientError } from "@/firebase/crashlytics";
 
 export const handle = { hideHeader: true };
@@ -55,7 +52,6 @@ export async function loader({ params }: Route.LoaderArgs) {
     {
       recipe,
       isLiked: false,
-      checkedLikesForUid: null as string | null,
     },
     {
       headers: { "Cache-Control": PUBLIC_RECIPE_CACHE_CONTROL },
@@ -63,12 +59,34 @@ export async function loader({ params }: Route.LoaderArgs) {
   );
 }
 
-// Subsequent SPA navigations and post-mutation revalidations query Firestore directly from the browser
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+let isInitialRecipeRequest = true;
+
+// Hydrates `isLiked` from IndexedDB auth and runs subsequent navigations directly in the browser
+export async function clientLoader({
+  params,
+  serverLoader,
+}: Route.ClientLoaderArgs) {
+  const wasInitial = isInitialRecipeRequest;
+  isInitialRecipeRequest = false;
   if (!params.recipeId) {
     throw data("No recipe ID provided", { status: 400 });
   }
-  const user = await waitForAuthReady();
+
+  const user = await getUser();
+  if (wasInitial) {
+    const serverData = await serverLoader();
+    if (!user) {
+      return serverData;
+    }
+    const isLiked = await isRecipeLikedByUser(user.uid, params.recipeId).catch(
+      () => false
+    );
+    return {
+      recipe: serverData.recipe,
+      isLiked,
+    };
+  }
+
   const [recipe, isLiked] = await Promise.all([
     getRecipe(params.recipeId),
     user
@@ -81,9 +99,9 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   return {
     recipe,
     isLiked,
-    checkedLikesForUid: user?.uid ?? null,
   };
 }
+clientLoader.hydrate = true as const;
 
 export function shouldRevalidate({
   actionResult,
@@ -121,7 +139,7 @@ export async function clientAction({
     throw data("No recipe ID provided", { status: 400 });
   }
 
-  const user = await waitForAuthReady();
+  const user = await getUser();
   if (!user) {
     const recipePath = href("/recipes/:recipeId", { recipeId });
     return redirect(
@@ -178,38 +196,6 @@ export async function clientAction({
 }
 
 export default function RecipePage({ loaderData }: Route.ComponentProps) {
-  const { recipe, isLiked, checkedLikesForUid } = loaderData;
-  const { user, authReady } = useAuthUser();
-  const revalidator = useRevalidator();
-  const navigation = useNavigation();
-
-  const uid = user?.uid ?? null;
-  const needsAuthRevalidation = Boolean(uid && checkedLikesForUid !== uid);
-
-  const triggerRevalidation = useEffectEvent(() => {
-    void revalidator.revalidate();
-  });
-
-  // Hydrate liked state once via clientLoader when a signed-in user hard-refreshes an SSR recipe page
-  useEffect(() => {
-    if (
-      authReady &&
-      needsAuthRevalidation &&
-      revalidator.state === "idle" &&
-      navigation.state === "idle"
-    ) {
-      triggerRevalidation();
-    }
-  }, [authReady, needsAuthRevalidation, revalidator.state, navigation.state]);
-
-  const resolvedIsLiked = Boolean(uid && checkedLikesForUid === uid && isLiked);
-  const isLikeStateReady = authReady && !needsAuthRevalidation;
-
-  return (
-    <RecipeDetail
-      recipe={recipe}
-      isLiked={resolvedIsLiked}
-      likeStateReady={isLikeStateReady}
-    />
-  );
+  const { recipe, isLiked } = loaderData;
+  return <RecipeDetail recipe={recipe} isLiked={isLiked} />;
 }

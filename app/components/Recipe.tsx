@@ -17,21 +17,17 @@ import { cn, getRecipeTitleTransitionName, isSafeImageUrl } from "@/lib/utils";
 interface RecipeDetailProps {
   recipe: Recipe;
   isLiked?: boolean;
-  likeStateReady?: boolean;
   readonly?: boolean;
 }
 
 const RecipeDetail: FC<RecipeDetailProps> = ({
   recipe,
   isLiked = false,
-  likeStateReady = true,
   readonly = false,
 }) => {
   const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
-  const { user, authReady } = useAuthUser();
+  const user = useAuthUser();
   const [hoveredStar, setHoveredStar] = useState(0);
-
-  const isLikeDisabled = !authReady || !likeStateReady;
 
   const pendingIntent = fetcher.formData?.get("intent");
 
@@ -60,7 +56,7 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
   const isDeleting = pendingIntent === "delete";
 
   const handleLikeToggle = () => {
-    if (readonly || isLikeDisabled) return;
+    if (readonly) return;
 
     void fetcher.submit(
       {
@@ -154,7 +150,6 @@ const RecipeDetail: FC<RecipeDetailProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isLikeDisabled}
                   aria-pressed={optimisticLiked}
                   aria-label={`Like recipe (${optimisticLikesCount} ${optimisticLikesCount === 1 ? "like" : "likes"})`}
                   onClick={handleLikeToggle}

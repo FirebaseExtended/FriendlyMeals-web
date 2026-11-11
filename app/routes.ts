@@ -18,10 +18,6 @@ export default [
     route("logout", "routes/logout.tsx"),
     route("recipes", "routes/recipes.tsx"),
     route("recipes/:recipeId", "routes/recipe.$recipeId.tsx"),
-
-    // Client-guarded routes (Firebase Auth lives in browser IndexedDB)
-    layout("routes/_protected.tsx", [
-      route("generate", "routes/generate.tsx"),
-    ]),
+    route("generate", "routes/generate.tsx"),
   ]),
 ] satisfies RouteConfig;

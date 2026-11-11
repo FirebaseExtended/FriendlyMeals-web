@@ -6,7 +6,7 @@ import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { SignInAuthScreen } from "@/components/sign-in-auth-screen";
 import { SignUpAuthScreen } from "@/components/sign-up-auth-screen";
 import { Spinner } from "@/components/ui/spinner";
-import { getFirebaseUI, waitForAuthReady } from "@/firebase/auth";
+import { getFirebaseUI, getUser } from "@/firebase/auth";
 
 export const handle = { hideHeaderActions: true };
 
@@ -40,7 +40,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const url = new URL(request.url);
   const redirectTo = getSafeRedirectPath(url.searchParams.get("redirectTo"));
 
-  const user = await waitForAuthReady();
+  const user = await getUser();
   if (user) {
     throw redirect(redirectTo);
   }
