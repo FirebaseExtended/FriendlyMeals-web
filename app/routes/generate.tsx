@@ -30,9 +30,14 @@ export function headers() {
 }
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  // TODO(Exercise 4): Call `await getUser()` and redirect signed-out visitors
-  // to `/login?redirectTo=...` before returning `null`.
-  void request;
+  const user = await getUser();
+  if (!user) {
+    const url = new URL(request.url);
+    const redirectTo = `${url.pathname}${url.search}`;
+    throw redirect(
+      `${href("/login")}?redirectTo=${encodeURIComponent(redirectTo)}`
+    );
+  }
   return null;
 }
 clientLoader.hydrate = true as const;
