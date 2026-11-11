@@ -1,11 +1,8 @@
 {
   "name": "friendly-meals-web",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22.0.0"
-  },
   "scripts": {
     "dev": "react-router dev",
     "build": "react-router build",
@@ -53,11 +50,14 @@
     "vite": "^8.3.6"
   },
   "overrides": {
-    "@firebase-oss/ui-react": {
-      "firebase": "$firebase"
-    },
     "@firebase-oss/ui-core": {
       "firebase": "$firebase"
+    },
+    "@firebase-oss/ui-react": {
+      "firebase": "$firebase"
     }
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

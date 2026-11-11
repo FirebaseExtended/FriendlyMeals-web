@@ -37,7 +37,10 @@ function oxcReactCompiler(): Plugin {
         });
         if (result.fatal) {
           const message = result.errors
-            .map((err) => `${err.message}${err.codeframe ? `\n${err.codeframe}` : ""}`)
+            .map(
+              (err) =>
+                `${err.message}${err.codeframe ? `\n${err.codeframe}` : ""}`
+            )
             .join("\n\n");
           this.error(message || "Oxc React Compiler transform failed.");
         }

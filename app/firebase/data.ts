@@ -23,6 +23,7 @@ import {
   subcollection,
   toLower,
   variable,
+  type Pipeline,
 } from "firebase/firestore/pipelines";
 import { firebaseApp } from "./firebase";
 
@@ -192,24 +193,12 @@ export async function isRecipeLikedByUser(
   return snap.exists();
 }
 
-/**
- * Workshop pipeline query: loads public recipes with dynamically aggregated
- * review averages and like counts, then applies URL-driven filters and sorting.
- * Fetches `limit + 1` rows to detect `hasMore` without a second count pipeline.
- * Works identically in Node SSR loaders and browser clientLoaders.
- */
-export async function queryRecipes(
-  filters: RecipeFilters
-): Promise<RecipesQueryResult> {
-  const effectiveLimit = Math.min(
-    MAX_RECIPES_LIMIT,
-    Math.max(1, Math.floor(filters.limit ?? DEFAULT_RECIPES_LIMIT))
-  );
-
-  let pipeline = db
-    .pipeline()
-    .collection("recipes")
-    .define(documentId(field("__name__")).as("parentRecipeId"));
+function applyRecipeFiltersAndSort(
+  initialPipeline: Pipeline,
+  filters: RecipeFilters,
+  effectiveLimit: number
+): Pipeline {
+  let pipeline = initialPipeline;
 
   if (filters.likedByUserId) {
     // Match deterministic `{recipeId}_{userId}` user-like doc IDs so synthetic
@@ -234,22 +223,6 @@ export async function queryRecipes(
         .greaterThan(0)
     );
   }
-
-  pipeline = pipeline.addFields(
-    subcollection("reviews")
-      .aggregate(average("rating").as("avg"))
-      .toScalarExpression()
-      .coalesce(0)
-      .as("averageRating"),
-    db
-      .pipeline()
-      .collection("likes")
-      .where(field("recipeId").equal(variable("parentRecipeId")))
-      .aggregate(countAll().as("count"))
-      .toScalarExpression()
-      .coalesce(0)
-      .as("likes")
-  );
 
   const trimmedSearch = filters.searchTerm?.trim().toLowerCase();
   if (trimmedSearch) {
@@ -306,9 +279,33 @@ export async function queryRecipes(
       break;
   }
 
-  pipeline = pipeline.limit(effectiveLimit + 1);
+  return pipeline.limit(effectiveLimit + 1);
+}
 
-  const { results } = await execute(pipeline);
+/**
+ * Workshop pipeline query: loads public recipes with dynamically aggregated
+ * review averages and like counts, then applies URL-driven filters and sorting.
+ * Fetches `limit + 1` rows to detect `hasMore` without a second count pipeline.
+ * Works identically in Node SSR loaders and browser clientLoaders.
+ */
+export async function queryRecipes(
+  filters: RecipeFilters
+): Promise<RecipesQueryResult> {
+  const effectiveLimit = Math.min(
+    MAX_RECIPES_LIMIT,
+    Math.max(1, Math.floor(filters.limit ?? DEFAULT_RECIPES_LIMIT))
+  );
+
+  // TODO(Exercise 2): Replace `results` below with a Firestore Enterprise pipeline query:
+  // 1. Build `let pipeline = db.pipeline().collection("recipes")`
+  //    and bind `.define(documentId(field("__name__")).as("parentRecipeId"))`.
+  // 2. Chain `.addFields(...)` to compute `averageRating` (from `subcollection("reviews")`)
+  //    and `likes` (from `db.pipeline().collection("likes")`).
+  // 3. Apply URL filters and sorting: `pipeline = applyRecipeFiltersAndSort(pipeline, filters, effectiveLimit)`.
+  // 4. Execute the pipeline: `const { results } = await execute(pipeline)`.
+  void applyRecipeFiltersAndSort;
+  const results: Awaited<ReturnType<typeof execute>>["results"] = [];
+
   const rows = results.flatMap((result) =>
     result.id ? [toPlainRecipe(result.id, result.data())] : []
   );

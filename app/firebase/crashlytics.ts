@@ -19,12 +19,10 @@ export function initBrowserCrashlytics(): Crashlytics | null {
   if (typeof window === "undefined" || !canUseCrashlytics()) {
     return null;
   }
-  if (!clientCrashlytics) {
-    clientCrashlytics = getCrashlytics(firebaseApp, {
-      features: [breadcrumbs()],
-    });
-  }
-  return clientCrashlytics;
+  // TODO(Exercise 5): Initialize `clientCrashlytics` once with
+  // `getCrashlytics(firebaseApp, { features: [breadcrumbs()] })` and return it.
+  void [breadcrumbs, clientCrashlytics, getCrashlytics];
+  return null;
 }
 
 export function reportClientError(
@@ -36,10 +34,9 @@ export function reportClientError(
     ? { ...attributes, ownerStack }
     : attributes;
   console.error("[Client Error]", error);
-  const crashlytics = initBrowserCrashlytics();
-  if (crashlytics) {
-    recordError(crashlytics, error, enrichedAttributes);
-  }
+  // TODO(Exercise 5): Call `initBrowserCrashlytics()` and record the error with
+  // `recordError(crashlytics, error, enrichedAttributes)` when initialized.
+  void [enrichedAttributes, recordError];
 }
 
 export function reportServerError(error: unknown, request: Request): void {
@@ -63,18 +60,8 @@ export function reportServerError(error: unknown, request: Request): void {
     return;
   }
 
-  try {
-    if (!serverCrashlytics) {
-      serverCrashlytics = getCrashlytics(firebaseApp);
-    }
-    recordError(serverCrashlytics, error, {
-      runtime: "ssr",
-      method: request.method,
-      url: request.url,
-    });
-    // Flush immediately so Cloud Run request-scoped CPU throttling does not stall OTLP batches
-    void flush(serverCrashlytics).catch(() => {});
-  } catch {
-    // Never fail an SSR request if telemetry reporting encounters an error
-  }
+  // TODO(Exercise 5): Record the SSR error with `getCrashlytics(firebaseApp)`,
+  // `{ runtime: "ssr", method: request.method, url: request.url }` attributes,
+  // and call `void flush(serverCrashlytics).catch(() => {})` inside a try/catch block.
+  void [flush, serverCrashlytics];
 }

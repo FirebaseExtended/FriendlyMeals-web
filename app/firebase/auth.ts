@@ -27,7 +27,8 @@ export function getFirebaseUI(): FirebaseUIStore {
  */
 export async function getUser(): Promise<FirebaseUser | null> {
   const auth = getAuth(firebaseApp);
-  await auth.authStateReady();
+  // TODO(Exercise 4): Await `auth.authStateReady()` so IndexedDB session state
+  // resolves before returning `auth.currentUser`.
   return auth.currentUser;
 }
 

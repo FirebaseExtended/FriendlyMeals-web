@@ -1,6 +1,6 @@
 # FriendlyMeals (React Router SSR + Firebase Workshop)
 
-FriendlyMeals is a recipe generator and community cookbook built with React 19, React Router v8 (Framework Mode with SSR), and Firebase:
+FriendlyMeals is a recipe generator and community cookbook built with React 19, React Router v8 (Framework Mode with SSR), and Firebase. Follow **[WORKSHOP.md](./WORKSHOP.md)** for the step-by-step hands-on lab guide and checkpoint branches (`workshop-start` through `workshop-solution`).
 
 - **Firebase AI Logic (`firebase/ai`)**: Generates structured JSON recipes from the browser with `gemini-3.8-flash` and `Schema.object`.
 - **Firestore Enterprise (`firebase/firestore/pipelines`)**: Computes recipe review averages, like counts, tags, and search filters in a single pipeline query shared between Node SSR `loader`s and browser `clientLoader`s.
@@ -46,11 +46,10 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 
 5. **Enable and configure Firebase AI Logic**
 
-   Enable the Gemini Developer API provider, restrict requests to authenticated users, and turn on AI monitoring:
+   Enable the Gemini Developer API provider and turn on AI monitoring:
 
    ```bash
    firebase ailogic:providers:enable gemini-developer-api
-   firebase ailogic:config:set security.auth-only true --force
    firebase ailogic:config:set monitoring.state true --force
    ```
 
@@ -74,10 +73,16 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 
 ## Production hardening and deployment
 
-- **App Check**:
-  1. In [App Check > Apps](https://console.firebase.google.com/project/_/appcheck/apps), register your Web app with a **reCAPTCHA Enterprise** site key.
-  2. For local development, open the Web app's overflow menu in App Check > **Manage debug tokens**, create a debug token, and add `VITE_RECAPTCHA_SITE_KEY` and `VITE_APPCHECK_DEBUG_TOKEN` to `.env.local`. For production on App Hosting, add `VITE_RECAPTCHA_SITE_KEY` under `env` in `apphosting.yaml` (since `.env.local` is gitignored).
-  3. In [App Check > APIs](https://console.firebase.google.com/project/_/appcheck/products), enforce App Check on **Firebase AI Logic** (note: once enforced, `/generate` rejects Gemini calls until your Web app and debug token are configured). Leave **Cloud Firestore** unenforced so Cloud Run SSR `loader`s can read public recipes without a browser reCAPTCHA token.
+- **AI Logic Auth & App Check**:
+  1. Restrict Firebase AI Logic calls to signed-in Firebase Auth users:
+
+     ```bash
+     firebase ailogic:config:set security.auth-only true --force
+     ```
+
+  2. In [App Check > Apps](https://console.firebase.google.com/project/_/appcheck/apps), register your Web app with a **reCAPTCHA Enterprise** site key.
+  3. For local development, open the Web app's overflow menu in App Check > **Manage debug tokens**, create a debug token, and add `VITE_RECAPTCHA_SITE_KEY` and `VITE_APPCHECK_DEBUG_TOKEN` to `.env.local`. For production on App Hosting, add `VITE_RECAPTCHA_SITE_KEY` under `env` in `apphosting.yaml` (since `.env.local` is gitignored).
+  4. In [App Check > APIs](https://console.firebase.google.com/project/_/appcheck/products), enforce App Check on **Firebase AI Logic** (note: once enforced, `/generate` rejects Gemini calls until your Web app and debug token are configured). Leave **Cloud Firestore** unenforced so Cloud Run SSR `loader`s can read public recipes without a browser reCAPTCHA token.
 - **App Hosting**:
   1. In [App Hosting](https://console.firebase.google.com/project/_/apphosting), connect your GitHub repository, create the `friendly-meals` backend (`apphosting.yaml`), and **associate your Firebase Web app** with the backend so App Hosting injects `FIREBASE_WEBAPP_CONFIG` for zero-argument `initializeApp()`. (To provision and deploy from local source via CLI instead, run `firebase apphosting:backends:create --non-interactive --backend friendly-meals --primary-region us-central1 --app <YOUR_FIREBASE_WEB_APP_ID> -s firebase-app-hosting-compute@<YOUR_PROJECT_ID>.iam.gserviceaccount.com --root-dir /` followed by `firebase deploy --only apphosting`.)
   2. After the backend is created, add its `<BACKEND_ID>--<PROJECT_ID>.<REGION>.hosted.app` domain in [Authentication > Settings > Authorized domains](https://console.firebase.google.com/project/_/authentication/settings) so Google Sign-In works on the live URL.

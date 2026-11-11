@@ -47,39 +47,9 @@ const recipeSchema = Schema.object({
   },
 });
 
-/**
- * Calls Gemini directly from the client via Firebase AI Logic to generate a
- * structured JSON recipe matching `recipeSchema`.
- */
-export async function generateStructuredJsonRecipe(
-  ingredients: string,
-  cuisineType: string
-): Promise<NewRecipeInput> {
-  const ai = getFirebaseAI();
-  const { model: modelName, systemInstruction } =
-    await getRecipeGenerationSettings();
-
-  const model = getGenerativeModel(ai, {
-    model: modelName,
-    systemInstruction,
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: recipeSchema,
-      maxOutputTokens: 8192,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-    },
-  });
-
-  const cuisineClause = cuisineType ? ` in the ${cuisineType} cuisine` : "";
-  const prompt = `Using the following list of ingredients, create a recipe${cuisineClause}: ${ingredients}.`;
-
-  const result = await model.generateContent(prompt);
-  const finishReason = result.response.candidates?.[0]?.finishReason;
-  if (finishReason && finishReason !== FinishReason.STOP) {
-    throw new Error(`Recipe generation incomplete (${finishReason}).`);
-  }
-  const parsed = JSON.parse(result.response.text()) as Partial<NewRecipeInput>;
-
+function normalizeRecipeResponse(
+  parsed: Partial<NewRecipeInput>
+): NewRecipeInput {
   const instructions: InstructionStep[] = Array.isArray(parsed.instructions)
     ? parsed.instructions
         .filter(
@@ -108,4 +78,37 @@ export async function generateStructuredJsonRecipe(
     cookTime: parsed.cookTime || "20 mins",
     servings: parsed.servings || "4",
   };
+}
+
+/**
+ * Calls Gemini directly from the client via Firebase AI Logic to generate a
+ * structured JSON recipe matching `recipeSchema`.
+ */
+export async function generateStructuredJsonRecipe(
+  ingredients: string,
+  cuisineType: string
+): Promise<NewRecipeInput> {
+  const cuisineClause = cuisineType ? ` in the ${cuisineType} cuisine` : "";
+  const prompt = `Using the following list of ingredients, create a recipe${cuisineClause}: ${ingredients}.`;
+
+  // TODO(Exercise 1): Call Gemini from the browser with Firebase AI Logic:
+  // 1. Get `ai = getFirebaseAI()` and `{ model: modelName, systemInstruction } = await getRecipeGenerationSettings()`.
+  // 2. Configure `getGenerativeModel(ai, { model: modelName, systemInstruction, generationConfig })`
+  //    with `responseMimeType: "application/json"`, `responseSchema: recipeSchema`,
+  //    `maxOutputTokens: 8192`, and `thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }`.
+  // 3. Call `await model.generateContent(prompt)`, verify `finishReason === FinishReason.STOP` (when present),
+  //    parse `result.response.text()` as JSON, and return `normalizeRecipeResponse(parsed)`.
+  void [
+    FinishReason,
+    ThinkingLevel,
+    getFirebaseAI,
+    getGenerativeModel,
+    getRecipeGenerationSettings,
+    normalizeRecipeResponse,
+    prompt,
+    recipeSchema,
+  ];
+  throw new Error(
+    "TODO(Exercise 1): Implement generateStructuredJsonRecipe in app/firebase/firebaseAILogic.client.ts"
+  );
 }

@@ -1,4 +1,8 @@
-import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
+import {
+  initializeApp,
+  type FirebaseApp,
+  type FirebaseOptions,
+} from "firebase/app";
 
 // Paste output of `firebase apps:sdkconfig WEB` here for local development
 const firebaseConfig: FirebaseOptions & Record<string, unknown> = {};
