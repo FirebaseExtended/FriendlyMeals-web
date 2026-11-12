@@ -1,12 +1,25 @@
-import { useState, ViewTransition, type FC } from "react";
+import {
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  ViewTransition,
+  type FC,
+  type RefObject,
+} from "react";
 import {
   data,
+  Form,
   href,
   Link,
+  NavigationType,
   redirect,
   useFetcher,
+  useLocation,
   useNavigation,
+  useNavigationType,
   useSearchParams,
+  useSubmit,
 } from "react-router";
 import { BookOpen, Database, Heart, Search, Sparkles } from "lucide-react";
 import type { Route } from "./+types/recipes";
@@ -33,15 +46,25 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  getCatalogFormData,
   isLikedFilterEnabled,
   parseFiltersFromUrl,
   parseLimitParam,
+  parseSortParam,
+  parseTagsParam,
 } from "@/lib/recipes-catalog";
 import { cn } from "@/lib/utils";
 
-// Omit `s-maxage` so Firebase App Hosting's Cloud CDN honors `stale-while-revalidate`
-const PUBLIC_RECIPES_CACHE_CONTROL =
-  "public, max-age=60, stale-while-revalidate=300";
+const SEARCH_DEBOUNCE_MS = 300;
+
+function clearTimeoutRef(
+  timerRef: RefObject<ReturnType<typeof setTimeout> | null>
+) {
+  if (timerRef.current !== null) {
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
+}
 
 export function headers({ loaderHeaders, errorHeaders }: Route.HeadersArgs) {
   if (errorHeaders) {
@@ -71,7 +94,9 @@ async function loadRecipesCatalog(request: Request, likedByUserId?: string) {
 export async function loader({ request }: Route.LoaderArgs) {
   const payload = await loadRecipesCatalog(request);
   return data(payload, {
-    headers: { "Cache-Control": PUBLIC_RECIPES_CACHE_CONTROL },
+    headers: {
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+    },
   });
 }
 
@@ -205,16 +230,107 @@ const ZeroState: FC = () => {
 export default function RecipesPage({ loaderData }: Route.ComponentProps) {
   const { recipes, hasMore, topTags } = loaderData;
   const user = useAuthUser();
+  const location = useLocation();
   const navigation = useNavigation();
+  const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
+  const submit = useSubmit();
   const [filterOpen, setFilterOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSubmitsRef = useRef(0);
 
   const recipesPath = href("/recipes");
+
+  useEffect(() => () => clearTimeoutRef(searchTimerRef), []);
+
+  // Sync uncontrolled form controls when the committed location changes (e.g. Back/Forward or brand link)
+  useEffect(() => {
+    if (!formRef.current || pendingSubmitsRef.current > 0) {
+      return;
+    }
+
+    const committedParams = new URLSearchParams(location.search);
+    const form = formRef.current;
+    const qInput = form.elements.namedItem("q");
+    if (
+      qInput instanceof HTMLInputElement &&
+      (navigationType === NavigationType.Pop ||
+        document.activeElement !== qInput)
+    ) {
+      clearTimeoutRef(searchTimerRef);
+      qInput.value = committedParams.get("q") ?? "";
+    }
+
+    const likedInput = form.elements.namedItem("liked");
+    if (likedInput instanceof HTMLInputElement) {
+      likedInput.checked =
+        Boolean(user) && isLikedFilterEnabled(committedParams.get("liked"));
+    }
+
+    const minRatingInput = form.elements.namedItem("minRating");
+    if (minRatingInput instanceof HTMLInputElement) {
+      const rating = Number(committedParams.get("minRating")) || 0;
+      minRatingInput.value = rating > 0 ? String(rating) : "";
+    }
+
+    const committedTags = new Set(parseTagsParam(committedParams));
+    for (const el of form.querySelectorAll<HTMLInputElement>(
+      'input[name="tags"]'
+    )) {
+      el.checked = committedTags.has(el.value);
+    }
+
+    const sortSelect = form.elements.namedItem("sort");
+    if (sortSelect instanceof HTMLSelectElement) {
+      sortSelect.value = parseSortParam(committedParams.get("sort"));
+    }
+  }, [location, navigationType, user]);
+
+  const submitCatalogForm = (form: HTMLFormElement, force = false) => {
+    const cleanedFormData = getCatalogFormData(form);
+    const nextParams = new URLSearchParams();
+    for (const [key, value] of cleanedFormData.entries()) {
+      if (typeof value === "string") {
+        nextParams.append(key, value);
+      }
+    }
+
+    const targetSearch =
+      navigation.state !== "idle" &&
+      navigation.location?.pathname === recipesPath
+        ? navigation.location.search
+        : location.search;
+    if (
+      !force &&
+      nextParams.toString() === new URLSearchParams(targetSearch).toString()
+    ) {
+      return;
+    }
+
+    const prevQuery = searchParams.get("q")?.trim() ?? "";
+    const nextQuery = nextParams.get("q") ?? "";
+    const isStartingNewSearch = !prevQuery && Boolean(nextQuery);
+
+    pendingSubmitsRef.current += 1;
+    startTransition(async () => {
+      try {
+        await submit(cleanedFormData, {
+          method: "get",
+          action: recipesPath,
+          replace: !isStartingNewSearch,
+          preventScrollReset: true,
+        });
+      } finally {
+        pendingSubmitsRef.current -= 1;
+      }
+    });
+  };
 
   const activeQueryText = searchParams.get("q")?.trim() || "";
   const activeLikedOnly = isLikedFilterEnabled(searchParams.get("liked"));
   const activeMinRating = Number(searchParams.get("minRating")) || 0;
-  const activeTags = searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const activeTags = parseTagsParam(searchParams);
   const hasFilters =
     activeLikedOnly ||
     Boolean(activeQueryText) ||
@@ -253,7 +369,31 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     activeTags.length === 0;
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4">
+    <Form
+      ref={formRef}
+      method="get"
+      action={recipesPath}
+      replace
+      preventScrollReset
+      onSubmit={(e) => {
+        e.preventDefault();
+        clearTimeoutRef(searchTimerRef);
+        submitCatalogForm(e.currentTarget, true);
+      }}
+      onChange={(e) => {
+        clearTimeoutRef(searchTimerRef);
+        if (e.target instanceof HTMLInputElement && e.target.name === "q") {
+          const form = e.currentTarget;
+          searchTimerRef.current = setTimeout(() => {
+            searchTimerRef.current = null;
+            submitCatalogForm(form);
+          }, SEARCH_DEBOUNCE_MS);
+          return;
+        }
+        submitCatalogForm(e.currentTarget);
+      }}
+      className="grid grid-cols-1 gap-4 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-4"
+    >
       <div className="md:col-start-2 md:row-start-1">
         <SearchBar />
       </div>
@@ -393,6 +533,6 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
           </>
         )}
       </section>
-    </div>
+    </Form>
   );
 }

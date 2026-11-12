@@ -1,4 +1,3 @@
-import { href, useNavigation, useSearchParams } from "react-router";
 import {
   DEFAULT_RECIPES_LIMIT,
   MAX_RECIPES_LIMIT,
@@ -37,13 +36,21 @@ export function isLikedFilterEnabled(raw: string | null): boolean {
   return raw === "1" || raw === "true";
 }
 
+export function parseTagsParam(params: URLSearchParams | FormData): string[] {
+  return params
+    .getAll("tags")
+    .flatMap((entry) => (typeof entry === "string" ? entry.split(",") : []))
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
 export function parseFiltersFromUrl(
   requestUrl: string,
   likedByUserId?: string
 ): RecipeFilters {
   const url = new URL(requestUrl);
   const rawMinRating = Number(url.searchParams.get("minRating"));
-  const rawTags = url.searchParams.get("tags");
+  const tags = parseTagsParam(url.searchParams);
 
   return {
     searchTerm: url.searchParams.get("q")?.trim() || undefined,
@@ -51,19 +58,41 @@ export function parseFiltersFromUrl(
       !Number.isNaN(rawMinRating) && rawMinRating > 0
         ? rawMinRating
         : undefined,
-    tags: rawTags ? rawTags.split(",").filter(Boolean) : undefined,
+    tags: tags.length > 0 ? tags : undefined,
     likedByUserId,
     sort: parseSortParam(url.searchParams.get("sort")),
     limit: parseLimitParam(url.searchParams.get("limit")),
   };
 }
 
-export function useOptimisticRecipesSearchParams(): URLSearchParams {
-  const [searchParams] = useSearchParams();
-  const navigation = useNavigation();
-  const recipesPath = href("/recipes");
-  return navigation.state !== "idle" &&
-    navigation.location?.pathname === recipesPath
-    ? new URLSearchParams(navigation.location.search)
-    : searchParams;
+export function getCatalogFormData(form: HTMLFormElement): FormData {
+  const raw = new FormData(form);
+  const cleaned = new FormData();
+
+  const q = raw.get("q");
+  if (typeof q === "string" && q.trim()) {
+    cleaned.set("q", q.trim());
+  }
+
+  const rawLiked = raw.get("liked");
+  if (typeof rawLiked === "string" && isLikedFilterEnabled(rawLiked)) {
+    cleaned.set("liked", "1");
+  }
+
+  const minRating = Number(raw.get("minRating"));
+  if (!Number.isNaN(minRating) && minRating > 0) {
+    cleaned.set("minRating", String(minRating));
+  }
+
+  for (const tag of parseTagsParam(raw)) {
+    cleaned.append("tags", tag);
+  }
+
+  const rawSort = raw.get("sort");
+  const sort = parseSortParam(typeof rawSort === "string" ? rawSort : null);
+  if (sort !== DEFAULT_SORT) {
+    cleaned.set("sort", sort);
+  }
+
+  return cleaned;
 }
