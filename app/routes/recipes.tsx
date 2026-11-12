@@ -359,7 +359,7 @@ export default function RecipesPage({ loaderData }: Route.ComponentProps) {
     ) > currentLimit;
 
   const canFilterByLikes = Boolean(user);
-  const isSignedOut = !user;
+  const isSignedOut = user === null;
   const countLabel = hasMore ? `${recipes.length}+` : String(recipes.length);
 
   const isEmptyLikedOnly =

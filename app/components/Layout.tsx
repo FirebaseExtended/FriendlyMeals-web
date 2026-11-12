@@ -88,6 +88,10 @@ const AppShell: FC<{ children: ReactNode; forceHeader?: boolean }> = ({
 
             {hideHeaderActions ? (
               <div aria-hidden="true" className="h-8 w-28" />
+            ) : user === undefined ? (
+              <Button type="button" size="sm" className="w-28" disabled>
+                Generate
+              </Button>
             ) : user ? (
               <Button asChild size="sm" className="w-28">
                 <Link to={href("/generate")} prefetch="intent">

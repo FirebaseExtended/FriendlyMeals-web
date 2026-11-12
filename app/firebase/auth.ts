@@ -22,12 +22,15 @@ export function getFirebaseUI(): FirebaseUIStore {
   return uiStoreInstance;
 }
 
+let isAuthReady = false;
+
 /**
  * Waits for Firebase Auth to restore any IndexedDB session in the browser.
  */
 export async function getUser(): Promise<FirebaseUser | null> {
   const auth = getAuth(firebaseApp);
   await auth.authStateReady();
+  isAuthReady = true;
   return auth.currentUser;
 }
 
@@ -36,13 +39,16 @@ export async function signOutUser(): Promise<void> {
 }
 
 function subscribeToAuth(callback: () => void) {
-  return onIdTokenChanged(getAuth(firebaseApp), callback);
+  return onIdTokenChanged(getAuth(firebaseApp), () => {
+    isAuthReady = true;
+    callback();
+  });
 }
 
-export function useAuthUser(): FirebaseUser | null {
+export function useAuthUser(): FirebaseUser | null | undefined {
   return useSyncExternalStore(
     subscribeToAuth,
-    () => getAuth(firebaseApp).currentUser,
-    () => null
+    () => (isAuthReady ? getAuth(firebaseApp).currentUser : undefined),
+    () => undefined
   );
 }
