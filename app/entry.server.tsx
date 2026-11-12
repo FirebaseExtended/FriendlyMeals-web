@@ -5,9 +5,24 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
-import { reportServerError } from "@/firebase/crashlytics";
 
 export const streamTimeout = 5_000;
+
+function logServerError(error: unknown, request: Request): void {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  console.error(
+    JSON.stringify({
+      severity: "ERROR",
+      message,
+      stack,
+      httpRequest: {
+        requestMethod: request.method,
+        requestUrl: request.url,
+      },
+    })
+  );
+}
 
 export default function handleRequest(
   request: Request,
@@ -73,7 +88,7 @@ export default function handleRequest(
         onError(error: unknown) {
           responseStatusCode = 500;
           if (shellRendered) {
-            reportServerError(error, request);
+            logServerError(error, request);
           }
         },
       }
@@ -85,5 +100,5 @@ export const handleError: HandleErrorFunction = (error, { request }) => {
   if (request.signal.aborted || isRouteErrorResponse(error)) {
     return;
   }
-  reportServerError(error, request);
+  logServerError(error, request);
 };

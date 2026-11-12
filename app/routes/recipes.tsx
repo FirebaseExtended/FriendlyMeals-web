@@ -11,7 +11,6 @@ import {
 import { BookOpen, Database, Heart, Search, Sparkles } from "lucide-react";
 import type { Route } from "./+types/recipes";
 import { useAuthUser, getUser } from "@/firebase/auth";
-import { reportClientError } from "@/firebase/crashlytics";
 import {
   getTop5Tags,
   MAX_RECIPES_LIMIT,
@@ -128,7 +127,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
     await seedSampleRecipes(user.uid);
     return { ok: true as const };
   } catch (error) {
-    reportClientError(error, { action: "seedSampleRecipes" });
+    console.error("[seedSampleRecipes]", error);
     return data(
       {
         ok: false as const,

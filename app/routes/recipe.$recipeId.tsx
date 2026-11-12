@@ -15,7 +15,6 @@ import {
   unlikeRecipe,
 } from "@/firebase/data";
 import { getUser } from "@/firebase/auth";
-import { reportClientError } from "@/firebase/crashlytics";
 
 export const handle = { hideHeader: true };
 
@@ -181,7 +180,7 @@ export async function clientAction({
 
     return data({ ok: false, error: "Unsupported action." }, { status: 400 });
   } catch (error) {
-    reportClientError(error, { route: "recipe.$recipeId", intent });
+    console.error(`[recipe.${intent}]`, error);
     return data(
       {
         ok: false,

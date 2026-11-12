@@ -1,4 +1,5 @@
 import {
+  CustomProvider,
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
   type AppCheck,
@@ -11,8 +12,10 @@ export const firebaseApp = initializeFirebaseApp();
 let appCheckInstance: AppCheck | null = null;
 
 /**
- * Initializes Firebase App Check in the browser only when a reCAPTCHA Enterprise
- * site key is configured. Guarding on `typeof window !== "undefined"` keeps
+ * Initializes Firebase App Check in the browser. In development, activates
+ * debug mode automatically (printing the debug token to the browser console)
+ * without requiring a reCAPTCHA site key; in production, requires
+ * `VITE_RECAPTCHA_SITE_KEY`. Guarding on `typeof window !== "undefined"` keeps
  * Node SSR loaders safe.
  */
 export function initializeBrowserAppCheck(): AppCheck | null {
@@ -24,7 +27,7 @@ export function initializeBrowserAppCheck(): AppCheck | null {
   }
 
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim();
-  if (!siteKey) {
+  if (import.meta.env.PROD && !siteKey) {
     return null;
   }
 
@@ -36,8 +39,17 @@ export function initializeBrowserAppCheck(): AppCheck | null {
     debugGlobal.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken || true;
   }
 
+  const provider = siteKey
+    ? new ReCaptchaEnterpriseProvider(siteKey)
+    : new CustomProvider({
+        getToken: () =>
+          Promise.reject(
+            new Error("VITE_RECAPTCHA_SITE_KEY is required in production.")
+          ),
+      });
+
   appCheckInstance = initializeAppCheck(firebaseApp, {
-    provider: new ReCaptchaEnterpriseProvider(siteKey),
+    provider,
     isTokenAutoRefreshEnabled: true,
   });
 
@@ -55,7 +67,8 @@ export function getFirebaseAI(): AI {
     const activeAppCheck = initializeBrowserAppCheck();
     aiInstance = getAI(firebaseApp, {
       backend: new GoogleAIBackend(),
-      useLimitedUseAppCheckTokens: Boolean(activeAppCheck),
+      useLimitedUseAppCheckTokens:
+        import.meta.env.PROD && Boolean(activeAppCheck),
     });
   }
   return aiInstance;

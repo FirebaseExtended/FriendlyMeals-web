@@ -1,6 +1,6 @@
 # FriendlyMeals Agent Guide (`AGENTS.md`)
 
-FriendlyMeals is a React 19 + React Router v8 (Framework Mode with selective SSR) recipe application backed by Firebase AI Logic, Firestore Enterprise pipelines, Firebase Authentication (`@firebase-oss/ui-shadcn`), App Check, Remote Config, Crashlytics, and Firebase App Hosting.
+FriendlyMeals is a React 19 + React Router v8 (Framework Mode with selective SSR) recipe application backed by Firebase AI Logic, Firestore Enterprise pipelines, Firebase Authentication (`@firebase-oss/ui-shadcn`), App Check, Remote Config, and Firebase App Hosting.
 
 ## Installed Agent Skills
 
@@ -12,7 +12,6 @@ Before editing Firebase or React Router code, consult the matching skill under `
 - `.agents/skills/firestore-rules-creation/SKILL.md`: Authoring schema-validated Firestore Security Rules (`firestore.rules`).
 - `.agents/skills/firebase-auth-basics/SKILL.md`: Client-side Firebase Authentication and UID-scoped Security Rules.
 - `.agents/skills/firebase-remote-config-basics/SKILL.md`: Managing Remote Config parameters (`remoteconfig.template.json`: `recipe_system_prompt`, `recipe_model`).
-- `.agents/skills/firebase-crashlytics/SKILL.md`: Reporting client and SSR errors (`flush` on Cloud Run) and uploading hidden sourcemaps.
 - `.agents/skills/firebase-app-hosting-basics/SKILL.md`: Deploying SSR apps to Cloud Run + Cloud CDN via Firebase App Hosting (`apphosting.yaml` and `firebase.json`).
 
 ## Architectural Invariants
@@ -29,7 +28,6 @@ Before editing Firebase or React Router code, consult the matching skill under `
    - `app/firebase/firebase-config.ts` uses `firebaseConfig` when pasted (`firebase apps:sdkconfig WEB`), and falls back to zero-argument `initializeApp()` for automatic initialization on Firebase App Hosting.
    - Guard browser-only SDKs (`initializeAppCheck`, `getRemoteConfig`, `getAuth`, `initializeUI`) behind `typeof window !== "undefined"` so importing `app/firebase/*` during Node SSR never accesses `window`, `self`, or IndexedDB.
    - Enforce App Check on Firebase AI Logic (browser-only), not on Firestore (which is queried by unauthenticated Node SSR `loader`s).
-   - Keep sourcemap uploads (`npm run upload:sourcemaps`) out of `npm run build` so Cloud Build succeeds in Firebase App Hosting.
 
 ## Commands
 
@@ -38,6 +36,6 @@ npm run dev                 # Start Vite 8 + React Router SSR dev server
 npm run typecheck           # Run react-router typegen && tsc -b (TypeScript 7)
 npm run lint                # Run Oxlint (type-aware + React Compiler rules)
 npm run format              # Format files with Oxfmt
-npm run build               # Build client assets (Oxc React Compiler + hidden sourcemaps) + SSR server bundle
+npm run build               # Build client assets (Oxc React Compiler) + SSR server bundle
 npm run start               # Serve production SSR build locally
 ```

@@ -69,7 +69,7 @@ export const IngredientInput: FC<IngredientInputProps> = ({
         disabled={busy}
         aria-invalid={Boolean(fieldError)}
         aria-describedby={fieldError ? "ingredients-error" : undefined}
-        placeholder="e.g., ripe bananas, day-old muffins, blueberries, cinnamon..."
+        placeholder="half a bag of spinach, canned chickpeas, garlic, a lemon, and way too much parmesan..."
         value={ingredients}
         onChange={(e) => {
           onIngredientsChange(e.target.value);

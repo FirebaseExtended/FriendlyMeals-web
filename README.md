@@ -6,7 +6,7 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 - **Firestore Enterprise (`firebase/firestore/pipelines`)**: Computes recipe review averages, like counts, tags, and search filters in a single pipeline query shared between Node SSR `loader`s and browser `clientLoader`s.
 - **React Router SSR + resource routes**: Renders `/`, `/recipes`, and `/recipes/:recipeId` on the server with Cloud CDN `Cache-Control` headers, skips the server hop on subsequent SPA navigations, handles mutations with `clientAction` + `useFetcher`, and serves raw `text/markdown` at `/recipes/:recipeId.md` for agents and `curl`.
 - **Firebase Authentication (`@firebase-oss/ui-shadcn`)**: Prebuilt Shadcn sign-in and sign-up screens (Email/Password + Google) with client-side route protection (`clientLoader` + `getUser()` in `app/routes/generate.tsx`), a client-hydrated `/logout` route, and `request.auth.uid` Security Rules.
-- **Production hardening + App Hosting**: Browser-guarded Firebase App Check, Remote Config (`recipe_system_prompt` and `recipe_model`), Crashlytics for Web (`<HydratedRouter onError>` + `entry.server.tsx handleError` + hidden sourcemaps), and Firebase App Hosting (`apphosting.yaml`).
+- **Production hardening + App Hosting**: Browser-guarded Firebase App Check, Remote Config (`recipe_system_prompt` and `recipe_model`), structured Cloud Logging SSR error reporting, and Firebase App Hosting (`apphosting.yaml`).
 
 ## Setup
 
@@ -76,18 +76,11 @@ FriendlyMeals is a recipe generator and community cookbook built with React 19, 
 
 - **App Check**:
   1. In [App Check > Apps](https://console.firebase.google.com/project/_/appcheck/apps), register your Web app with a **reCAPTCHA Enterprise** site key.
-  2. For local development, open the Web app's overflow menu in App Check > **Manage debug tokens**, create a debug token, and add `VITE_RECAPTCHA_SITE_KEY` and `VITE_APPCHECK_DEBUG_TOKEN` to `.env.local`. For production on App Hosting, add `VITE_RECAPTCHA_SITE_KEY` under `env` in `apphosting.yaml` (since `.env.local` is gitignored).
+  2. For local development (`npm run dev`), copy the `Firebase App Check debug token` printed in your browser console and add it in App Check > **Manage debug tokens**. For production on App Hosting, add `VITE_RECAPTCHA_SITE_KEY` under `env` in `apphosting.yaml`.
   3. In [App Check > APIs](https://console.firebase.google.com/project/_/appcheck/products), enforce App Check on **Firebase AI Logic** (note: once enforced, `/generate` rejects Gemini calls until your Web app and debug token are configured). Leave **Cloud Firestore** unenforced so Cloud Run SSR `loader`s can read public recipes without a browser reCAPTCHA token.
 - **App Hosting**:
   1. In [App Hosting](https://console.firebase.google.com/project/_/apphosting), connect your GitHub repository, create the `friendly-meals` backend (`apphosting.yaml`), and **associate your Firebase Web app** with the backend so App Hosting injects `FIREBASE_WEBAPP_CONFIG` for zero-argument `initializeApp()`. (To provision and deploy from local source via CLI instead, run `firebase apphosting:backends:create --non-interactive --backend friendly-meals --primary-region us-central1 --app <YOUR_FIREBASE_WEB_APP_ID> -s firebase-app-hosting-compute@<YOUR_PROJECT_ID>.iam.gserviceaccount.com --root-dir /` followed by `firebase deploy --only apphosting`.)
   2. After the backend is created, add its `<BACKEND_ID>--<PROJECT_ID>.<REGION>.hosted.app` domain in [Authentication > Settings > Authorized domains](https://console.firebase.google.com/project/_/authentication/settings) so Google Sign-In works on the live URL.
-- **Crashlytics**:
-  1. Open [Crashlytics](https://console.firebase.google.com/project/_/crashlytics) and select your Web app to initialize crash reporting, and ensure the [Firebase Telemetry API](https://console.developers.google.com/apis/api/firebasetelemetry.googleapis.com/overview) and [Firebase Telemetry Admin API](https://console.developers.google.com/apis/api/firebasetelemetryadmin.googleapis.com/overview) are enabled on your project.
-  2. After running `npm run build`, upload the hidden sourcemaps in `build` for deobfuscated client and SSR stack traces:
-
-     ```bash
-     npm run upload:sourcemaps -- --app <YOUR_FIREBASE_WEB_APP_ID>
-     ```
 
 ## Scripts
 
@@ -96,6 +89,6 @@ npm run dev        # Start Vite 8 + React Router SSR dev server
 npm run typecheck  # Run react-router typegen && tsc -b (TypeScript 7)
 npm run lint       # Run Oxlint (type-aware + React Compiler rules)
 npm run format     # Format files with Oxfmt
-npm run build      # Build client assets (Oxc React Compiler + hidden sourcemaps) + SSR server bundle
+npm run build      # Build client assets (Oxc React Compiler) + SSR server bundle
 npm run start      # Serve production SSR build locally
 ```

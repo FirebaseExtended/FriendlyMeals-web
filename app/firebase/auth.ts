@@ -37,7 +37,7 @@ export async function signOutUser(): Promise<void> {
 
 export function useAuthUser(): FirebaseUser | null {
   return useSyncExternalStore(
-    () => onIdTokenChanged(getAuth(firebaseApp), (user) => console.log(user)),
+    () => onIdTokenChanged(getAuth(firebaseApp), () => {}),
     () => getAuth(firebaseApp).currentUser,
     () => null
   );

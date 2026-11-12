@@ -20,7 +20,6 @@ import {
   type Recipe,
 } from "@/firebase/data";
 import { useAuthUser, getUser } from "@/firebase/auth";
-import { reportClientError } from "@/firebase/crashlytics";
 import { cn } from "@/lib/utils";
 
 export const handle = { hideHeader: true };
@@ -76,7 +75,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
     const savedRecipeId = await publishRecipe(user.uid, recipe);
     return redirect(href("/recipes/:recipeId", { recipeId: savedRecipeId }));
   } catch (error) {
-    reportClientError(error, { action: "publishRecipe" });
+    console.error("[publishRecipe]", error);
     return data(
       {
         ok: false,
@@ -198,7 +197,7 @@ export default function GeneratePage() {
       setGeneratedRecipe(recipe);
       setIsInputExpanded(false);
     } catch (error) {
-      reportClientError(error, { action: "generateStructuredJsonRecipe" });
+      console.error("[generateStructuredJsonRecipe]", error);
       setErrorMessage(formatGenerationError(error));
     } finally {
       setIsGenerating(false);
