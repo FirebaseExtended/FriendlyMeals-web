@@ -114,15 +114,6 @@ export const FilterPanel: FC<FilterPanelProps> = ({
         )}
       </button>
 
-      {/* Desktop static sidebar header */}
-      <div className="hidden md:flex items-center gap-2 pb-3">
-        <SlidersHorizontal
-          aria-hidden="true"
-          className="w-4 h-4 text-muted-foreground"
-        />
-        <h2 className="text-sm font-semibold text-foreground">Filter</h2>
-      </div>
-
       <search
         id="recipe-filters"
         aria-label="Filter recipes"
@@ -132,51 +123,32 @@ export const FilterPanel: FC<FilterPanelProps> = ({
         )}
       >
         <FieldGroup className="gap-5">
-          <label
-            htmlFor="my-likes-switch"
-            title={
-              isSignedOut
-                ? "Sign in to filter by your liked recipes"
-                : undefined
-            }
-            className={cn(
-              "group flex items-center justify-between gap-3 text-sm font-medium leading-snug select-none",
-              canFilterByLikes
-                ? "cursor-pointer text-foreground"
-                : "cursor-not-allowed text-muted-foreground"
-            )}
-          >
-            <span className="inline-flex items-center gap-2">
-              <Heart
-                aria-hidden="true"
-                className="size-4 text-muted-foreground transition-colors group-has-checked:fill-primary group-has-checked:text-primary"
-              />
-              <span>My likes</span>
-            </span>
-            <span
-              className={cn(
-                "inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent bg-input shadow-xs transition-colors group-has-checked:bg-primary group-has-focus-visible:ring-2 group-has-focus-visible:ring-ring group-has-focus-visible:ring-offset-2 group-has-focus-visible:ring-offset-background",
-                !canFilterByLikes && "opacity-50"
-              )}
-            >
-              <input
-                id="my-likes-switch"
-                type="checkbox"
-                role="switch"
-                aria-checked={isMyLikesChecked}
-                name="liked"
-                value="1"
-                defaultChecked={defaultLikesChecked}
-                disabled={!canFilterByLikes}
-                className="peer sr-only"
-              />
-              <span
-                aria-hidden="true"
-                className="pointer-events-none block size-4 translate-x-0 rounded-full bg-background shadow-xs ring-0 transition-transform peer-checked:translate-x-4"
-              />
-            </span>
-          </label>
 
+          {availableTags.length > 0 && (
+            <FieldSet className="gap-0">
+              <FieldLegend variant="label" className="leading-snug">
+                Popular Tags
+              </FieldLegend>
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map((tag) => (
+                  <label
+                    key={tag}
+                    className="cursor-pointer rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground/80 transition-colors select-none hover:border-primary/50 hover:text-foreground has-checked:border-primary has-checked:bg-primary/10 has-checked:font-medium has-checked:text-primary has-focus-visible:ring-2 has-focus-visible:ring-ring"
+                  >
+                    <input
+                      type="checkbox"
+                      name="tags"
+                      value={tag}
+                      defaultChecked={committedTags.includes(tag)}
+                      className="sr-only"
+                    />
+                    {tag}
+                  </label>
+                ))}
+              </div>
+            </FieldSet>
+          )}
+        
           <FieldSet className="gap-0">
             <FieldLegend variant="label" className="leading-snug">
               Minimum Rating
@@ -234,30 +206,50 @@ export const FilterPanel: FC<FilterPanelProps> = ({
             </div>
           </FieldSet>
 
-          {availableTags.length > 0 && (
-            <FieldSet className="gap-0">
-              <FieldLegend variant="label" className="leading-snug">
-                Popular Tags
-              </FieldLegend>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
-                  <label
-                    key={tag}
-                    className="cursor-pointer rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground/80 transition-colors select-none hover:border-primary/50 hover:text-foreground has-checked:border-primary has-checked:bg-primary/10 has-checked:font-medium has-checked:text-primary has-focus-visible:ring-2 has-focus-visible:ring-ring"
-                  >
-                    <input
-                      type="checkbox"
-                      name="tags"
-                      value={tag}
-                      defaultChecked={committedTags.includes(tag)}
-                      className="sr-only"
-                    />
-                    {tag}
-                  </label>
-                ))}
-              </div>
-            </FieldSet>
-          )}
+          <label
+            htmlFor="my-likes-switch"
+            title={
+              isSignedOut
+                ? "Sign in to filter by your liked recipes"
+                : undefined
+            }
+            className={cn(
+              "group flex items-center justify-between gap-3 text-sm font-medium leading-snug select-none",
+              canFilterByLikes
+                ? "cursor-pointer text-foreground"
+                : "cursor-not-allowed text-muted-foreground"
+            )}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Heart
+                aria-hidden="true"
+                className="size-4 text-muted-foreground transition-colors group-has-checked:fill-primary group-has-checked:text-primary"
+              />
+              <span>My likes</span>
+            </span>
+            <span
+              className={cn(
+                "inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent bg-input shadow-xs transition-colors group-has-checked:bg-primary group-has-focus-visible:ring-2 group-has-focus-visible:ring-ring group-has-focus-visible:ring-offset-2 group-has-focus-visible:ring-offset-background",
+                !canFilterByLikes && "opacity-50"
+              )}
+            >
+              <input
+                id="my-likes-switch"
+                type="checkbox"
+                role="switch"
+                aria-checked={isMyLikesChecked}
+                name="liked"
+                value="1"
+                defaultChecked={defaultLikesChecked}
+                disabled={!canFilterByLikes}
+                className="peer sr-only"
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none block size-4 translate-x-0 rounded-full bg-background shadow-xs ring-0 transition-transform peer-checked:translate-x-4"
+              />
+            </span>
+          </label>
 
           {hasPanelFilters && (
             <div className="flex justify-start border-t border-border/60 pt-3">
